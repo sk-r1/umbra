@@ -25,7 +25,11 @@
         Theme-Variable in einer UXP-Version nicht existiert.
     */
     body {
-      padding: 8px 12px 16px 12px;
+      /* Unteres Padding war größer (16px) als das obere (8px), um Platz
+         für zwei gestapelte Zeilen (Status + Version) zu lassen. Die
+         Versionszeile ist jetzt im Flyout-Menü statt hier — Padding
+         entsprechend auf oben/unten symmetrisch reduziert. */
+      padding: 8px 12px 8px 12px;
       margin: 0;
       color: var(--uxp-host-text-color, #ffffff);
       background-color: var(--uxp-host-background-color, transparent);
