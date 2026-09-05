@@ -158,6 +158,7 @@ const I18N = {
     menuReload: "Reload Plugin",
     menuManual: "User Manual",
     menuRepo: "GitHub Repository",
+    menuToRgb: "Convert document to RGB",
   },
   de: {
     sigmaLabel: "Ziel-Kontrast (Sigma):",
@@ -219,6 +220,7 @@ const I18N = {
     menuReload: "Plugin neu laden",
     menuManual: "Anleitung",
     menuRepo: "GitHub-Repository",
+    menuToRgb: "Dokument nach RGB wandeln",
   },
 };
 
@@ -370,30 +372,87 @@ function setStatus(text) {
 let lastStatusKey = "statusReady";
 let lastStatusArgs = [];
 let lastStatusSuffix = "";
+let lastStatusIsError = false;
 
 function renderStatus() {
-  setStatus(t(lastStatusKey, ...lastStatusArgs) + lastStatusSuffix);
+  const text = t(lastStatusKey, ...lastStatusArgs) + lastStatusSuffix;
+  const el = $("status");
+  if (el) el.classList.toggle("status-error", lastStatusIsError);
+  // ⚠ als Warnzeichen — dasselbe wie in der Sigma-Warnung, das in UXP
+  // zuverlässig rendert; die gelbe Einfärbung kommt aus der CSS-Klasse
+  // status-error (siehe index.html).
+  setStatus(lastStatusIsError ? "⚠ " + text : text);
 }
 
 /** Setzt die Statuszeile über einen Übersetzungsschlüssel (+ optionale
  * Formatierungs-Argumente) statt über fertigen Text, damit renderStatus()
- * sie bei einem Sprachwechsel reproduzieren kann. */
+ * sie bei einem Sprachwechsel reproduzieren kann. Normaler Info-Zustand. */
 function reportStatus(key, ...args) {
   lastStatusKey = key;
   lastStatusArgs = args;
   lastStatusSuffix = "";
+  lastStatusIsError = false;
   renderStatus();
 }
 
-/** Wie reportStatus(), aber für die Fehlermeldungen: übersetzbares
- * Präfix (key) plus ein NICHT übersetzbarer Suffix (die Laufzeit-
- * Fehlermeldung von Photoshop/JS, bleibt beim Sprachwechsel unverändert
- * stehen — nur das Präfix "Fehler: "/"Error: " wird neu übersetzt). */
+/** EIGENE, vollständig übersetzbare Fehlermeldung per Schlüssel (z. B.
+ * errNotRgb). Die ganze Meldung ist ein vollständiger Satz und wird bei
+ * Sprachwechsel korrekt neu übersetzt. Bewusst OHNE "Fehler:"-Präfix — die
+ * Warnwirkung übernehmen das ⚠ und die gelbe Einfärbung; ein zusätzliches
+ * Präfix führte sonst zum "Fehler: Error:"-Doppel (das rohe, von
+ * executeAsModal umverpackte err trägt bereits ein "Error:"). */
+function reportErrorKey(key) {
+  lastStatusKey = key;
+  lastStatusArgs = [];
+  lastStatusSuffix = "";
+  lastStatusIsError = true;
+  renderStatus();
+}
+
+/** Für UNBEKANNTE Laufzeitfehler (Photoshop/JS): übersetzbares Präfix
+ * (key) plus ein NICHT übersetzbarer Suffix (die rohe Fehlermeldung,
+ * bleibt beim Sprachwechsel stehen — sie ist ja nicht übersetzt). */
 function reportStatusError(key, suffix) {
   lastStatusKey = key;
   lastStatusArgs = [];
   lastStatusSuffix = suffix;
+  lastStatusIsError = true;
   renderStatus();
+}
+
+// Bekannte, vollständig übersetzbare Fehlermeldungen. Wird ein gefangener
+// Fehler-Text als eine dieser Meldungen erkannt, zeigen wir ihn über den
+// SCHLÜSSEL an (per reportErrorKey -> übersetzt sich mit, kein Doppel-
+// präfix) statt über den rohen, an die Ursprungssprache gebundenen Text.
+const TRANSLATABLE_ERROR_KEYS = [
+  "errNotRgb",
+  "errNoDocument",
+  "errNoLayer",
+  "errInvalidPresetFile",
+];
+
+/** Prüft, ob eine (evtl. von executeAsModal umverpackte) Fehlermeldung
+ * einer unserer übersetzbaren Meldungen entspricht, und gibt deren
+ * Schlüssel zurück (per Enthaltensein, robust gegen ein vorangestelltes
+ * "Error:"). Sonst null. */
+function errorKeyFromMessage(msg) {
+  const m = String(msg || "");
+  for (const key of TRANSLATABLE_ERROR_KEYS) {
+    for (const lang of Object.keys(I18N)) {
+      const translated = I18N[lang][key];
+      if (typeof translated === "string" && translated && m.indexOf(translated) !== -1) {
+        return key;
+      }
+    }
+  }
+  return null;
+}
+
+/** Rohe Meldung aus einem gefangenen Fehler, ohne ein von executeAsModal
+ * vorangestelltes "Error:". */
+function cleanErrMessage(err) {
+  const raw = err && err.message ? err.message : String(err);
+  return raw.replace(/^Error:\s*/i, "");
 }
 
 /**
@@ -711,10 +770,16 @@ function wireButton(id, workFn, commandName) {
       reportStatus("statusDone");
     } catch (err) {
       console.error(err);
-      reportStatusError(
-        "statusErrorPrefix",
-        err && err.message ? err.message : String(err)
-      );
+      // Eigene, übersetzbare Meldung (z. B. errNotRgb)? Dann per Schlüssel
+      // anzeigen — übersetzt sich bei Sprachwechsel mit, ohne "Fehler:
+      // Error:"-Doppelpräfix. Sonst die rohe Meldung mit übersetzbarem
+      // Präfix (das rohe "Error:" wird dabei entfernt).
+      const key = errorKeyFromMessage(err && err.message ? err.message : String(err));
+      if (key) {
+        reportErrorKey(key);
+      } else {
+        reportStatusError("statusErrorPrefix", cleanErrMessage(err));
+      }
     }
   });
 }
@@ -960,9 +1025,41 @@ function invokeMenuItem(id) {
         .openExternal(REPO_URL)
         .catch((err) => console.warn("[Umbra] Repository konnte nicht geöffnet werden:", err));
       break;
+    case "menuToRgb":
+      convertDocumentToRgb();
+      break;
     // "menuVersion" ist enabled:false und damit nicht klickbar — kein
     // Fall nötig.
   }
+}
+
+/**
+ * Wandelt das aktive Dokument nach RGB — bequemer Weg direkt aus dem
+ * Panel-Menü, vor allem für den Fall, dass Methode A mit gesetztem
+ * "Ergebnis in Lab belassen" das Dokument in Lab hinterlassen hat und man
+ * es (z. B. vor Methode B) wieder nach RGB braucht. Ist das Dokument schon
+ * RGB, ist die Umwandlung ein No-op. Der Dokument-Zugriff läuft über
+ * executeAsModal (von Photoshop verlangt).
+ */
+function convertDocumentToRgb() {
+  if (!app.activeDocument) {
+    reportErrorKey("errNoDocument");
+    return;
+  }
+  core
+    .executeAsModal(
+      () =>
+        action.batchPlay(
+          [{ _obj: "convertMode", to: { _class: "RGBColorMode" } }],
+          {}
+        ),
+      { commandName: "Convert document to RGB" }
+    )
+    .then(() => reportStatus("statusDone"))
+    .catch((err) => {
+      console.warn("[Umbra] RGB-Umwandlung fehlgeschlagen:", err);
+      reportStatusError("statusErrorPrefix", cleanErrMessage(err));
+    });
 }
 
 /**
@@ -1003,7 +1100,7 @@ function refreshMenuLabels() {
     const panel = entrypoints.getPanel(UMBRA_PANEL_ID);
     if (!panel) return;
     const items = panel.menuItems;
-    ["menuReload", "menuManual", "menuRepo"].forEach((id) => {
+    ["menuReload", "menuManual", "menuRepo", "menuToRgb"].forEach((id) => {
       const item = items.getItem(id);
       if (item) item.label = t(id);
     });
@@ -1058,6 +1155,8 @@ try {
           { id: "menuReload", label: t("menuReload") },
           { id: "menuManual", label: t("menuManual") },
           { id: "menuRepo", label: t("menuRepo") },
+          "-",
+          { id: "menuToRgb", label: t("menuToRgb") },
           "-",
           { id: "menuVersion", label: `Version ${pluginVersion}`, enabled: false },
           "-",

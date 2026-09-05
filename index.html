@@ -199,6 +199,13 @@
       opacity: 0.85;
       min-height: 14px;
     }
+    /* Fehler-/Warnzustand der Statuszeile: gelbe Warnfarbe (dieselbe wie
+       die Sigma-Warnung) und voll deckend, damit sie sich klar von den
+       normalen Statusmeldungen abhebt. Das ⚠-Zeichen setzt main.js davor. */
+    #status.status-error {
+      color: var(--uxp-host-warning-color, #ffcf7a);
+      opacity: 1;
+    }
   </style>
 </head>
 <body>

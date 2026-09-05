@@ -837,6 +837,28 @@ RGB und keine andere Ebene würde je durch eine Umwandlung angefasst. Das
 ist ein größerer Umbau am (verifizierten) Rechenkern und wurde bewusst
 zurückgestellt.
 
+## Fehlermeldungen: Warnhinweis, saubere Übersetzung, RGB-Menüpunkt (05.09.2026)
+
+Rund um den RGB-Guard von Methode B, nach erstem Testen:
+
+- **Doppeltes Präfix „Fehler: Error:" behoben.** Beim Durchlauf durch
+  `executeAsModal` trägt der gefangene Fehler bereits ein „Error:" im
+  Text; unser zusätzliches „Fehler:"-Präfix ergab das Doppel. Eigene,
+  übersetzbare Meldungen (z. B. der RGB-Hinweis) werden jetzt über ihren
+  Übersetzungsschlüssel angezeigt — ganz ohne Präfix.
+- **Rückübersetzung beim Sprachwechsel.** Die Fehlermeldung wurde vorher
+  als fertiger Text gespeichert und blieb daher beim Umschalten in der
+  alten Sprache. Jetzt merkt sich die Statuszeile bei bekannten Meldungen
+  den Schlüssel und übersetzt sie beim Sprachwechsel korrekt mit.
+- **Gelber Warnhinweis.** Fehlermeldungen erscheinen jetzt mit einem
+  ⚠-Zeichen und in der gelben Warnfarbe (dieselbe wie die Sigma-Warnung),
+  klar abgesetzt von normalen Statusmeldungen.
+- **Neuer Menüpunkt „Dokument nach RGB wandeln".** Direkt im Flyout-Menü,
+  als bequemer Ein-Klick-Weg zurück nach RGB — vor allem, wenn Methode A
+  mit „Ergebnis in Lab belassen" das Dokument in Lab hinterlassen hat und
+  man es (z. B. vor Methode B) wieder in RGB braucht. Bei bereits
+  RGB-Dokumenten ein No-op.
+
 ## Bekannte offene Punkte / nächste Schritte mit Claude Code
 
 Ich habe den Code nicht gegen eine echte Photoshop-Instanz getestet – das
