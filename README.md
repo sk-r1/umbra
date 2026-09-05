@@ -806,12 +806,20 @@ pro Ebene), hatte das zwei unschöne Folgen:
   Deckkraft, ging nicht mehr, weil nie beide zugleich in RGB vorlagen.
 
 **Der Fix (Option „A wandelt zurück"):** Methode A wandelt das Dokument am
-Ende bedingungslos zurück nach RGB. Die Umwandlung ist farbmetrisch, also
+Ende standardmäßig zurück nach RGB. Die Umwandlung ist farbmetrisch, also
 erscheinungstreu — der eingebackene Stretch bleibt erhalten; nur sehr
 stark gestreckte Farben außerhalb des RGB-Farbraums werden an dessen Rand
 gekappt (für jede RGB-Nutzung ohnehin unvermeidlich). Damit ist das
 Dokument nach A wieder RGB, B funktioniert, und das Überblenden zweier
 Ergebnisebenen ist wieder möglich.
+
+**Opt-out-Häkchen „Ergebnis in Lab belassen":** Für die fortgeschrittene
+Kanal-Bearbeitung (z. B. den a*-Kanal als eigenes Dokument herausziehen
+und mit dem vollen Werkzeugsatz bearbeiten) muss das Ergebnis in Lab
+vorliegen. Ist das Häkchen gesetzt, überspringt A die Rückwandlung. Der
+Nutzer muss dann selbst nach RGB wandeln, bevor Methode B läuft — vergisst
+er es, fängt ihn der RGB-Guard von B mit klarer Meldung ab. Standard: aus
+(= zurück nach RGB, der sichere Normalfall).
 
 **Dazu als Absicherung:** Methode B bricht mit klarer Meldung ab, wenn das
 Dokument wider Erwarten nicht in RGB ist (statt still falsche Farben zu

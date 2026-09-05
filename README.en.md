@@ -43,9 +43,16 @@ checkmark shows the active one.
 Duplicates the layer → converts the document to Lab mode → stretches
 only the a\*/b\* (color) channels in a 2×2 transform → converts the
 document back to RGB. Lightness (L\*) is left completely untouched. The
-Lab conversion is just an internal step; the document is always returned
-to RGB so Method B, exporting, and blending layers keep working (color
-mode is a document-wide property, not per-layer).
+Lab conversion is just an internal step; by default the document is
+returned to RGB so Method B, exporting, and blending layers keep working
+(color mode is a document-wide property, not per-layer).
+
+There is an opt-out: the **"Keep result in Lab mode"** checkbox leaves
+the document in Lab so you can edit the individual a\*/b\*/L channels
+directly (e.g. copy the a\* channel into its own document and work on it
+with any tool). With it ticked, you must convert back to RGB yourself
+before running Method B — if you forget, Method B stops with a clear
+message rather than producing garbage.
 
 **Method B — YRE / LRE** (modeled after DStretch for ImageJ)
 Duplicates the layer → document stays in RGB → internally converts each

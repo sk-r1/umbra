@@ -97,8 +97,9 @@ const I18N = {
     preserveMean: "Preserve original mean",
     methodATitle: "Method A — Lab a/b",
     applyBtn: "Apply Lab a/b",
+    keepLabText: "Keep result in Lab mode (for channel editing)",
     methodAHint:
-      "Converts the document to Lab mode and stretches only a* and b*. Lightness L* is preserved exactly.",
+      "Converts the document to Lab mode and stretches only a* and b*. Lightness L* is preserved exactly. Normally the document is converted back to RGB afterwards; tick \"Keep result in Lab mode\" to leave it in Lab so you can edit the a*/b*/L channels directly — Method B then needs a manual convert back to RGB first.",
     methodBTitle: "Method B — YRE / LRE",
     // Bewusst gekürzt ("LRE only" statt "only relevant for LRE"): der lange
     // Text (gemessen ~297px) übersteigt die verfügbare Checkbox-Breite
@@ -163,8 +164,9 @@ const I18N = {
     preserveMean: "Original-Mittelwert beibehalten",
     methodATitle: "Methode A — Lab a/b",
     applyBtn: "Lab a/b anwenden",
+    keepLabText: "Ergebnis in Lab belassen (für Kanal-Bearbeitung)",
     methodAHint:
-      "Wandelt das Dokument in den Lab-Modus und streckt nur a* und b*. Die Helligkeit L* bleibt exakt erhalten.",
+      "Wandelt das Dokument in den Lab-Modus und streckt nur a* und b*. Die Helligkeit L* bleibt exakt erhalten. Normalerweise wird danach zurück nach RGB gewandelt; mit \"Ergebnis in Lab belassen\" bleibt es in Lab, sodass die a*/b*/L-Kanäle direkt bearbeitbar sind — Methode B braucht dann vorher eine manuelle Rückwandlung nach RGB.",
     methodBTitle: "Methode B — YRE / LRE",
     adobeRgbText: "Adobe RGB (1998) statt sRGB — nur für LRE relevant",
     yreMultLabel: "Kanal-Multiplikatoren YRE (Y / U / V)",
@@ -292,6 +294,7 @@ function applyStaticTranslations() {
   setText("featherHint", "featherHint");
   setText("grayscale", "grayscaleText");
   setText("methodATitle", "methodATitle");
+  setText("keepLab", "keepLabText");
   setText("applyBtn", "applyBtn");
   setText("methodAHint", "methodAHint");
   setText("methodBTitle", "methodBTitle");
@@ -450,6 +453,10 @@ function getSigma() {
 
 function getPreserveMean() {
   return isChecked($("preserveMean"));
+}
+
+function getKeepLab() {
+  return isChecked($("keepLab"));
 }
 
 function getProfileName() {
@@ -868,7 +875,8 @@ async function initUI() {
         reportStatus,
         getSaturation(),
         getColorBalance(),
-        getFeatherRadius()
+        getFeatherRadius(),
+        getKeepLab()
       ),
     "Decorrelation Stretch (Lab a/b)"
   );
@@ -1351,7 +1359,8 @@ async function runLabAbWorkflow(
   report,
   saturation,
   colorBalance,
-  featherRadius
+  featherRadius,
+  keepLab
 ) {
   const doc = app.activeDocument;
   if (!doc) throw new Error(t("errNoDocument"));
@@ -1406,22 +1415,30 @@ async function runLabAbWorkflow(
   }
 
   // Dokument-Modus wiederherstellen. Methode A hat oben das GESAMTE
-  // Dokument nach Lab gewandelt (der Stretch braucht die Lab-Kanäle) und
-  // vorher gab es KEINE Rückwandlung — das Dokument blieb dauerhaft in
-  // Lab. Folgen: Methode B (erwartet RGB) interpretierte die Lab-Pixel als
-  // RGB und lieferte Farbsalat, und der normale RGB-Workflow (Export,
-  // Ebenen per Deckkraft überblenden) war gebrochen, weil der Farbmodus
-  // dokumentweit gilt, nicht pro Ebene. Jetzt wandelt A am Ende zurück
-  // nach RGB. Die Umwandlung ist farbmetrisch, also erscheinungstreu — der
-  // eingebackene Stretch bleibt erhalten; nur sehr stark gestreckte Farben
-  // außerhalb des RGB-Farbraums werden an dessen Rand gekappt (für jede
-  // RGB-Nutzung ohnehin unvermeidlich). Bewusst BEDINGUNGSLOS: A wandelt
-  // immer nach Lab, also immer zurück.
-  report && report("statusSwitchRgb");
-  await action.batchPlay(
-    [{ _obj: "convertMode", to: { _class: "RGBColorMode" } }],
-    {}
-  );
+  // Dokument nach Lab gewandelt (der Stretch braucht die Lab-Kanäle).
+  // Ohne Rückwandlung bliebe das Dokument dauerhaft in Lab — Folgen:
+  // Methode B (erwartet RGB) interpretierte die Lab-Pixel als RGB und
+  // lieferte Farbsalat, und der normale RGB-Workflow (Export, Ebenen per
+  // Deckkraft überblenden) war gebrochen, weil der Farbmodus dokumentweit
+  // gilt, nicht pro Ebene. Daher standardmäßig zurück nach RGB. Die
+  // Umwandlung ist farbmetrisch, also erscheinungstreu — der eingebackene
+  // Stretch bleibt erhalten; nur sehr stark gestreckte Farben außerhalb
+  // des RGB-Farbraums werden an dessen Rand gekappt (für jede RGB-Nutzung
+  // ohnehin unvermeidlich).
+  //
+  // Ausnahme (keepLab): Für die fortgeschrittene Kanal-Bearbeitung (z. B.
+  // den a*-Kanal als eigenes Dokument herausziehen und mit dem vollen
+  // Werkzeugsatz bearbeiten) muss das Ergebnis IN Lab vorliegen — dann
+  // überspringen wir die Rückwandlung bewusst. Der Nutzer muss dann selbst
+  // nach RGB wandeln, bevor Methode B läuft; falls er es vergisst, fängt
+  // ihn der RGB-Guard am Anfang von runReWorkflow mit klarer Meldung ab.
+  if (!keepLab) {
+    report && report("statusSwitchRgb");
+    await action.batchPlay(
+      [{ _obj: "convertMode", to: { _class: "RGBColorMode" } }],
+      {}
+    );
+  }
 }
 
 /**
