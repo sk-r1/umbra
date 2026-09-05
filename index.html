@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<!--
+  Umbra — Decorrelation Stretch plugin for Adobe Photoshop (UXP)
+  Copyright (C) 2026 Sönke Kastner. Developed with the assistance of
+  Claude (Anthropic).
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version. See the LICENSE file or
+  <https://www.gnu.org/licenses/> for the full text.
+-->
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    /*
+      Spectrum-konforme Gestaltung:
+      - Farben kommen aus UXPs Theme-Variablen, NICHT hartcodiert.
+        Dadurch passt sich das Panel automatisch an alle vier
+        Photoshop-Themes an (darkest/dark/medium/lightest).
+      - Bedienelemente sind Spectrum-Komponenten (sp-checkbox,
+        sp-slider, sp-action-button, sp-button, sp-divider).
+      - Fallback-Werte in var(...) für den Fall, dass eine
+        Theme-Variable in einer UXP-Version nicht existiert.
+    */
+    body {
+      padding: 8px 12px 16px 12px;
+      margin: 0;
+      color: var(--uxp-host-text-color, #ffffff);
+      background-color: var(--uxp-host-background-color, transparent);
+      font-size: var(--uxp-host-font-size, 11px);
+    }
+    .header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    .lang-toggle-btn {
+      flex: 0 0 auto;
+      width: 28px;
+      height: 28px;
+      min-width: 28px;
+      padding: 0;
+      --spectrum-actionbutton-min-width: 28px;
+    }
+    .lang-toggle-btn img {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: block;
+      pointer-events: none;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 4px 0 2px 0;
+    }
+    .help-btn {
+      flex: 0 0 auto;
+      width: 24px;
+      height: 24px;
+      min-width: 24px;
+      --spectrum-actionbutton-min-width: 24px;
+    }
+    .control-row {
+      display: flex;
+      align-items: center;
+      margin-top: 2px;
+    }
+    .control-row sp-slider {
+      flex: 1;
+      min-width: 60px;
+    }
+    .mini-reset-btn {
+      flex: 0 0 auto;
+      width: 24px;
+      height: 24px;
+      min-width: 24px;
+      margin-left: 4px;
+      --spectrum-actionbutton-min-width: 24px;
+    }
+    sp-button {
+      width: 100%;
+      margin-top: 4px;
+    }
+    /*
+      3D-Look für die drei Anwenden-Buttons. Bewusst über box-shadow und
+      transform statt über einen internen Farbverlauf: sp-button rendert
+      sein Inneres in einem Shadow DOM, das von außen nur eingeschränkt
+      erreichbar ist — ein von außen gesetzter Hintergrund-Verlauf könnte
+      vom internen, deckenden Button-Hintergrund verdeckt werden.
+      box-shadow und transform wirken dagegen auf die Elementbox selbst
+      und sollten deshalb zuverlässig sichtbar sein, unabhängig vom
+      Shadow-DOM-Innenleben.
+    */
+    .apply-btn-3d {
+      box-shadow:
+        0 3px 0 rgba(0, 0, 0, 0.35),
+        0 5px 8px rgba(0, 0, 0, 0.3);
+      border-radius: 4px;
+      transition: transform 0.06s ease, box-shadow 0.06s ease;
+    }
+    .apply-btn-3d:active {
+      transform: translateY(3px);
+      box-shadow:
+        0 0 0 rgba(0, 0, 0, 0.35),
+        0 1px 2px rgba(0, 0, 0, 0.3);
+    }
+    sp-checkbox {
+      margin-top: 4px;
+    }
+    .warning-text {
+      color: var(--uxp-host-warning-color, #ffcf7a);
+      display: none;
+      margin: 2px 0 0 0;
+    }
+    .warning-text.visible {
+      display: block;
+    }
+    .mult-row {
+      display: flex;
+      align-items: center;
+      margin-top: 2px;
+    }
+    .mults {
+      display: flex;
+    }
+    .mults sp-textfield {
+      width: 46px;
+    }
+    .mults sp-textfield + sp-textfield {
+      margin-left: 4px;
+    }
+    .mult-preset-btns {
+      display: flex;
+      flex-direction: row;
+      margin-left: 16px;
+    }
+    .icon-btn {
+      width: 32px;
+      height: 32px;
+      min-width: 32px;
+      --spectrum-actionbutton-min-width: 32px;
+    }
+    .icon-btn + .icon-btn {
+      margin-left: 4px;
+    }
+    .icon-btn img {
+      width: 18px;
+      height: 18px;
+      display: block;
+      pointer-events: none;
+    }
+    .mult-display {
+      margin: 6px 0 0 0;
+      padding: 5px 6px;
+      background-color: var(--uxp-host-widget-hover-background-color, rgba(128,128,128,0.15));
+      border-radius: 4px;
+      line-height: 1.5;
+      font-family: monospace;
+    }
+    .mult-display .bad {
+      color: var(--uxp-host-error-color, #ff9a8a);
+    }
+    .hint {
+      color: var(--uxp-host-text-color-secondary, inherit);
+      opacity: 0.75;
+      line-height: 1.35;
+      margin: 4px 0 0 0;
+    }
+    .hint.collapsible {
+      display: none;
+      background-color: var(--uxp-host-widget-hover-background-color, rgba(128,128,128,0.12));
+      border-radius: 4px;
+      padding: 6px;
+    }
+    .hint.collapsible.visible {
+      display: block;
+    }
+    .value-label {
+      margin: 6px 0 0 0;
+    }
+    #sigmaVal, #saturationVal, #featherVal {
+      font-weight: bold;
+    }
+    #status {
+      margin: 8px 0 0 0;
+      opacity: 0.85;
+      min-height: 14px;
+    }
+    #version {
+      opacity: 0.5;
+      margin: 6px 0 0 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="header-row">
+    <sp-heading size="XS">Umbra</sp-heading>
+    <sp-action-button id="langToggleBtn" class="lang-toggle-btn" quiet>
+      <img id="langFlagImg" src="icons/flag_en.png" alt="EN/DE" width="20" height="20" />
+    </sp-action-button>
+  </div>
+
+  <sp-divider size="small"></sp-divider>
+
+  <sp-body class="value-label" size="XS">
+    <span id="sigmaLabelText">Target contrast (Sigma):</span> <span id="sigmaVal">25</span>
+  </sp-body>
+  <div class="control-row">
+    <sp-slider id="sigma" min="10" max="100" value="25" step="1"></sp-slider>
+    <sp-action-button id="sigmaResetBtn" class="mini-reset-btn" quiet title="Reset">↺</sp-action-button>
+  </div>
+  <sp-body id="sigmaWarning" class="warning-text" size="XS"></sp-body>
+
+  <sp-checkbox id="preserveMean" size="s">Preserve original mean</sp-checkbox>
+
+  <sp-body class="value-label" size="XS">
+    <span id="saturationLabelText">Saturation (after stretch):</span> <span id="saturationVal">1.0</span>
+  </sp-body>
+  <div class="control-row">
+    <sp-slider id="saturation" min="0.1" max="2" value="1" step="0.01"></sp-slider>
+    <sp-action-button id="saturationResetBtn" class="mini-reset-btn" quiet title="Reset">↺</sp-action-button>
+  </div>
+
+  <sp-checkbox id="colorBalance" size="s">Color balance before stretch (CB)</sp-checkbox>
+
+  <sp-body class="value-label" size="XS">
+    <span id="featherLabelText">Feather radius (px, if selection active):</span> <span id="featherVal">0</span>
+  </sp-body>
+  <div class="control-row">
+    <sp-slider id="featherRadius" min="0" max="200" value="0" step="1"></sp-slider>
+    <sp-action-button id="featherHelpBtn" class="mini-reset-btn" quiet title="Info">?</sp-action-button>
+  </div>
+  <sp-body class="hint collapsible" id="featherHint" size="XS">
+    Only applies when a selection is active. Statistics are computed from
+    the selection's content only; the result is masked back onto the
+    layer with the chosen feather.
+  </sp-body>
+
+  <sp-divider size="small"></sp-divider>
+
+  <div class="section-header">
+    <sp-heading size="XXS" id="methodATitle">Method A — Lab a/b</sp-heading>
+    <sp-action-button id="methodAHelpBtn" class="help-btn" quiet title="Info">?</sp-action-button>
+  </div>
+  <sp-button id="applyBtn" class="apply-btn-3d" variant="cta">Apply Lab a/b</sp-button>
+  <sp-body class="hint collapsible" id="methodAHint" size="XS">
+    Converts the document to Lab mode and stretches only a* and b*.
+    Lightness L* is preserved exactly.
+  </sp-body>
+
+  <sp-divider size="small"></sp-divider>
+
+  <div class="section-header">
+    <sp-heading size="XXS" id="methodBTitle">Method B — YRE / LRE</sp-heading>
+    <sp-action-button id="methodBHelpBtn" class="help-btn" quiet title="Info">?</sp-action-button>
+  </div>
+
+  <sp-checkbox id="adobeRgb" size="s" checked>Adobe RGB (1998) instead of sRGB — only relevant for LRE</sp-checkbox>
+
+  <sp-checkbox id="grayscale" size="s">Grayscale (convert enhancement to brightness only)</sp-checkbox>
+
+  <sp-button id="applyYreBtn" class="apply-btn-3d" variant="cta">Apply YRE (YUV)</sp-button>
+  <sp-button id="applyLreBtn" class="apply-btn-3d" variant="cta">Apply LRE (Lab)</sp-button>
+  <sp-body class="hint collapsible" id="methodBHint" size="XS">
+    Document stays in RGB. Full 3&times;3 transform in the modified
+    YUV or Lab color space, with red emphasis.
+  </sp-body>
+
+  <sp-divider size="small"></sp-divider>
+
+  <sp-body class="value-label" size="XS" id="yreMultLabel">Channel multipliers YRE (Y / U / V)</sp-body>
+  <div class="mult-row">
+    <div class="mults">
+      <sp-textfield id="yre1" value="1.0" size="s"></sp-textfield>
+      <sp-textfield id="yre2" value="0.6" size="s"></sp-textfield>
+      <sp-textfield id="yre3" value="1.6" size="s"></sp-textfield>
+    </div>
+    <div class="mult-preset-btns">
+      <sp-action-button id="yreSavePresetBtn" class="icon-btn" quiet title="Save preset">
+        <img src="icons/save.png" alt="Save" width="18" height="18" />
+      </sp-action-button>
+      <sp-action-button id="yreLoadPresetBtn" class="icon-btn" quiet title="Load preset">
+        <img src="icons/load.png" alt="Load" width="18" height="18" />
+      </sp-action-button>
+    </div>
+  </div>
+  <sp-body class="hint" size="XS">
+    <span id="yrePresetLabelText">Loaded preset:</span> <span id="yreLoadedPresetName">-</span>
+  </sp-body>
+
+  <sp-body class="value-label" size="XS" id="lreMultLabel">Channel multipliers LRE (L / a / b)</sp-body>
+  <div class="mult-row">
+    <div class="mults">
+      <sp-textfield id="lre1" value="1.0" size="s"></sp-textfield>
+      <sp-textfield id="lre2" value="1.6" size="s"></sp-textfield>
+      <sp-textfield id="lre3" value="0.6" size="s"></sp-textfield>
+    </div>
+    <div class="mult-preset-btns">
+      <sp-action-button id="lreSavePresetBtn" class="icon-btn" quiet title="Save preset">
+        <img src="icons/save.png" alt="Save" width="18" height="18" />
+      </sp-action-button>
+      <sp-action-button id="lreLoadPresetBtn" class="icon-btn" quiet title="Load preset">
+        <img src="icons/load.png" alt="Load" width="18" height="18" />
+      </sp-action-button>
+    </div>
+  </div>
+  <sp-body class="hint" size="XS">
+    <span id="lrePresetLabelText">Loaded preset:</span> <span id="lreLoadedPresetName">-</span>
+  </sp-body>
+
+  <sp-body id="multDisplay" class="mult-display" size="XS"></sp-body>
+  <sp-button id="resetMultBtn" variant="secondary">Reset multipliers</sp-button>
+
+  <sp-divider size="small"></sp-divider>
+
+  <sp-body id="status" size="XS"></sp-body>
+  <sp-body id="version" size="XS">v1.0.0</sp-body>
+
+  <script src="./main.js"></script>
+</body>
+</html>

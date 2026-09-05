@@ -1,0 +1,82 @@
+{
+  "id": "com.example.umbra",
+  "name": "Umbra",
+  "version": "1.0.0",
+  "main": "index.html",
+  "manifestVersion": 5,
+  "host": [
+    {
+      "app": "PS",
+      "minVersion": "24.4.0"
+    }
+  ],
+  "entrypoints": [
+    {
+      "type": "panel",
+      "id": "umbraPanel",
+      "label": {
+        "default": "Umbra"
+      },
+      "minimumSize": {
+        "width": 300,
+        "height": 520
+      },
+      "maximumSize": {
+        "width": 600,
+        "height": 1350
+      },
+      "preferredDockedSize": {
+        "width": 320,
+        "height": 680
+      },
+      "preferredFloatingSize": {
+        "width": 330,
+        "height": 700
+      },
+      "icons": [
+        {
+          "width": 23,
+          "height": 23,
+          "path": "icons/icon.png",
+          "scale": [
+            1,
+            2
+          ],
+          "theme": [
+            "darkest",
+            "dark",
+            "medium",
+            "lightest",
+            "light",
+            "all"
+          ]
+        }
+      ]
+    }
+  ],
+  "requiredPermissions": {
+    "localFileSystem": "request"
+  },
+  "icons": [
+    {
+      "width": 23,
+      "height": 23,
+      "path": "icons/icon.png",
+      "scale": [
+        1,
+        2
+      ],
+      "theme": [
+        "darkest",
+        "dark",
+        "medium",
+        "lightest",
+        "light",
+        "all"
+      ]
+    }
+  ],
+  "featureFlags": {
+    "enableSWCSupport": true
+  }
+}

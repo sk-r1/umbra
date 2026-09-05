@@ -1,0 +1,12 @@
+# Gepackte Plugin-Builds (.ccx) — regenerierbar über das UXP Developer
+# Tool, gehören nicht in die Versionsverwaltung.
+*.ccx
+Plugin/
+
+# Alte, ausgemusterte Icon-Dateien.
+icons/icons_old/
+
+# Editor-/OS-Ablagen.
+.DS_Store
+Thumbs.db
+desktop.ini
