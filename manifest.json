@@ -18,11 +18,11 @@
         "default": "Umbra"
       },
       "minimumSize": {
-        "width": 300,
+        "width": 320,
         "height": 520
       },
       "maximumSize": {
-        "width": 600,
+        "width": 320,
         "height": 1350
       },
       "preferredDockedSize": {
@@ -30,7 +30,7 @@
         "height": 680
       },
       "preferredFloatingSize": {
-        "width": 330,
+        "width": 320,
         "height": 700
       },
       "icons": [

@@ -290,6 +290,10 @@ function applyStaticTranslations() {
 async function setLanguage(lang) {
   currentLang = lang === "de" ? "de" : "en";
   applyStaticTranslations();
+  // Footer-Statuszeile neu übersetzen (siehe reportStatus/renderStatus
+  // weiter unten) — applyStaticTranslations() fasst #status bewusst NICHT
+  // an, da dort kein fester Text steht, sondern eine der Statusmeldungen.
+  renderStatus();
   await saveLangSetting(currentLang);
 }
 
@@ -307,6 +311,45 @@ function setStatus(text) {
   const el = $("status");
   if (el) el.textContent = text;
   console.log("[Umbra]", text);
+}
+
+/**
+ * Merkt sich, WELCHE Statusmeldung zuletzt angezeigt wurde (als
+ * Übersetzungsschlüssel + Argumente, nicht als fertigen Text), damit ein
+ * Sprachwechsel die Fußzeile neu übersetzen kann. Ohne dieses Gedächtnis
+ * bliebe die zuletzt gesetzte Meldung (typischerweise "Fertig."/"Done."
+ * oder "Bereit."/"Ready.", da das die häufigsten Ruhezustände sind) nach
+ * einem Sprachwechsel in der alten Sprache stehen — genau das wurde
+ * beobachtet ("Done." blieb sichtbar, obwohl die restliche UI auf
+ * Deutsch umgeschaltet war).
+ */
+let lastStatusKey = "statusReady";
+let lastStatusArgs = [];
+let lastStatusSuffix = "";
+
+function renderStatus() {
+  setStatus(t(lastStatusKey, ...lastStatusArgs) + lastStatusSuffix);
+}
+
+/** Setzt die Statuszeile über einen Übersetzungsschlüssel (+ optionale
+ * Formatierungs-Argumente) statt über fertigen Text, damit renderStatus()
+ * sie bei einem Sprachwechsel reproduzieren kann. */
+function reportStatus(key, ...args) {
+  lastStatusKey = key;
+  lastStatusArgs = args;
+  lastStatusSuffix = "";
+  renderStatus();
+}
+
+/** Wie reportStatus(), aber für die Fehlermeldungen: übersetzbares
+ * Präfix (key) plus ein NICHT übersetzbarer Suffix (die Laufzeit-
+ * Fehlermeldung von Photoshop/JS, bleibt beim Sprachwechsel unverändert
+ * stehen — nur das Präfix "Fehler: "/"Error: " wird neu übersetzt). */
+function reportStatusError(key, suffix) {
+  lastStatusKey = key;
+  lastStatusArgs = [];
+  lastStatusSuffix = suffix;
+  renderStatus();
 }
 
 /**
@@ -522,11 +565,12 @@ async function savePresetToFile(space) {
       ""
     );
     setLoadedPresetName(space, displayName);
-    setStatus(t("presetSaved", displayName, space));
+    reportStatus("presetSaved", displayName, space);
   } catch (err) {
     console.warn("[Umbra] Preset speichern fehlgeschlagen:", err);
-    setStatus(
-      t("presetSaveErrorPrefix") + (err && err.message ? err.message : String(err))
+    reportStatusError(
+      "presetSaveErrorPrefix",
+      err && err.message ? err.message : String(err)
     );
   }
 }
@@ -570,14 +614,15 @@ async function loadPresetFromFile(space) {
     // (Y/U/V vs. L/a/b) — deshalb klar darauf hinweisen statt still zu
     // übernehmen.
     if (data.space && data.space !== space) {
-      setStatus(t("presetSpaceMismatch", displayName, data.space, space));
+      reportStatus("presetSpaceMismatch", displayName, data.space, space);
     } else {
-      setStatus(t("presetLoaded", displayName, space));
+      reportStatus("presetLoaded", displayName, space);
     }
   } catch (err) {
     console.warn("[Umbra] Preset laden fehlgeschlagen:", err);
-    setStatus(
-      t("presetLoadErrorPrefix") + (err && err.message ? err.message : String(err))
+    reportStatusError(
+      "presetLoadErrorPrefix",
+      err && err.message ? err.message : String(err)
     );
   }
 }
@@ -613,12 +658,15 @@ function wireButton(id, workFn, commandName) {
   }
   btn.addEventListener("click", async () => {
     try {
-      setStatus(t("statusComputing"));
+      reportStatus("statusComputing");
       await core.executeAsModal(workFn, { commandName });
-      setStatus(t("statusDone"));
+      reportStatus("statusDone");
     } catch (err) {
       console.error(err);
-      setStatus(t("statusErrorPrefix") + (err && err.message ? err.message : String(err)));
+      reportStatusError(
+        "statusErrorPrefix",
+        err && err.message ? err.message : String(err)
+      );
     }
   });
 }
@@ -769,7 +817,7 @@ async function initUI() {
       runLabAbWorkflow(
         getSigma(),
         getPreserveMean(),
-        setStatus,
+        reportStatus,
         getSaturation(),
         getColorBalance(),
         getFeatherRadius()
@@ -785,7 +833,7 @@ async function initUI() {
         readMults("YRE").values,
         getSigma(),
         getPreserveMean(),
-        setStatus,
+        reportStatus,
         getProfileName(),
         getSaturation(),
         getGrayscale(),
@@ -803,7 +851,7 @@ async function initUI() {
         readMults("LRE").values,
         getSigma(),
         getPreserveMean(),
-        setStatus,
+        reportStatus,
         getProfileName(),
         getSaturation(),
         getGrayscale(),
@@ -813,13 +861,14 @@ async function initUI() {
     "Decorrelation Stretch (LRE)"
   );
 
-  setStatus(t("statusReady"));
+  reportStatus("statusReady");
 }
 
 initUI().catch((err) => {
   console.error("[Umbra] Initialisierung fehlgeschlagen:", err);
-  setStatus(
-    t("statusInitErrorPrefix") + (err && err.message ? err.message : String(err))
+  reportStatusError(
+    "statusInitErrorPrefix",
+    err && err.message ? err.message : String(err)
   );
 });
 
@@ -850,7 +899,7 @@ async function duplicateBaseLayer(doc, suffix, report) {
     doc.layers[0];
   if (!baseLayer) throw new Error(t("errNoLayer"));
 
-  report && report(t("statusDuplicating"));
+  report && report("statusDuplicating");
   const dupLayer = await baseLayer.duplicate();
   dupLayer.name = `${baseLayer.name} – ${suffix}`;
   doc.activeLayers = [dupLayer];
@@ -1041,8 +1090,13 @@ async function runLabAbWorkflow(
   const doc = app.activeDocument;
   if (!doc) throw new Error(t("errNoDocument"));
 
+  // "Lab a/b" bewusst wie "YRE"/"LRE" bei Methode B: ein fester, nicht
+  // übersetzter technischer Bezeichner (steht so auch unübersetzt in der
+  // deutschen UI-Überschrift "Methode A — Lab a/b"), keine Marke des
+  // Plugins selbst — der Ebenenname soll die verwendete Methode zeigen,
+  // nicht das Plugin, das sie erzeugt hat.
   const layerSuffix = buildLayerSuffix(
-    "Umbra",
+    "Lab a/b",
     targetSigma,
     saturation,
     colorBalance,
@@ -1053,24 +1107,24 @@ async function runLabAbWorkflow(
   const useSelection = await hasActiveSelection(doc);
   let weights = null;
   if (useSelection) {
-    report && report(t("statusSelectionWeights"));
+    report && report("statusSelectionWeights");
     weights = await buildSelectionWeights(doc, featherRadius);
   }
 
   // CB-Farbausgleich (Gray-World) MUSS vor der Lab-Moduskonvertierung
   // passieren — er korrigiert die rohen RGB-Werte, nicht die Lab-Werte.
   if (colorBalance) {
-    report && report(t("statusColorBalance"));
+    report && report("statusColorBalance");
     await applyGrayWorldBalance(doc, dupLayer);
   }
 
-  report && report(t("statusSwitchLab"));
+  report && report("statusSwitchLab");
   await action.batchPlay(
     [{ _obj: "convertMode", to: { _class: "labColorMode" } }],
     {}
   );
 
-  report && report(t("statusComputingLabAB"));
+  report && report("statusComputingLabAB");
   await applyStretchToLayerLab(
     doc,
     dupLayer,
@@ -1081,7 +1135,7 @@ async function runLabAbWorkflow(
   );
 
   if (useSelection) {
-    report && report(t("statusApplyingMask"));
+    report && report("statusApplyingMask");
     await applySelectionAsMask(doc, dupLayer);
   }
 }
@@ -1302,18 +1356,22 @@ async function runReWorkflow(
   const useSelection = await hasActiveSelection(doc);
   let weights = null;
   if (useSelection) {
-    report && report(t("statusSelectionWeights"));
+    report && report("statusSelectionWeights");
     weights = await buildSelectionWeights(doc, featherRadius);
   }
 
   if (colorBalance) {
-    report && report(t("statusColorBalance"));
+    report && report("statusColorBalance");
     await applyGrayWorldBalance(doc, dupLayer);
   }
 
   report &&
     report(
-      t("statusComputingSpace", space, Math.round(targetSigma), multTxt, profileName)
+      "statusComputingSpace",
+      space,
+      Math.round(targetSigma),
+      multTxt,
+      profileName
     );
   await applyStretchToLayerRe(
     doc,
@@ -1329,7 +1387,7 @@ async function runReWorkflow(
   );
 
   if (useSelection) {
-    report && report(t("statusApplyingMask"));
+    report && report("statusApplyingMask");
     await applySelectionAsMask(doc, dupLayer);
   }
 }
