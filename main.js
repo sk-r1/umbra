@@ -63,7 +63,7 @@ const MANUAL_URL_EN = "https://github.com/sk-r1/umbra/blob/main/README.en.md";
 // refreshVersionMenuLabel()). MUSS bei einem Versionssprung von Hand mit
 // manifest.json "version" synchron gehalten werden, falls der
 // Automatismus aus irgendeinem Grund nicht greift.
-const FALLBACK_VERSION = "1.0.0";
+const FALLBACK_VERSION = "1.1.0";
 let pluginVersion = FALLBACK_VERSION;
 
 // Diagnose-Ausgaben (min/max der Rohkanäle) in die DevTools-Konsole.
@@ -151,6 +151,9 @@ const I18N = {
       "Only applies when a selection is active. Statistics are computed from the selection's content only; the result is masked back onto the layer with the chosen feather.",
     statusSelectionWeights: "Computing weights from selection...",
     statusApplyingMask: "Applying selection as layer mask...",
+    statusSwitchRgb: "Converting document back to RGB...",
+    errNotRgb:
+      "This method needs the document in RGB mode. Please convert it (Image → Mode → RGB Color) and try again.",
     menuReload: "Reload Plugin",
     menuManual: "User Manual",
     menuRepo: "GitHub Repository",
@@ -208,6 +211,9 @@ const I18N = {
       "Wirkt nur, wenn eine Auswahl aktiv ist. Die Statistik wird nur aus dem Inhalt der Auswahl berechnet; das Ergebnis wird mit der gewählten Federung als Maske zurück auf die Ebene angewendet.",
     statusSelectionWeights: "Berechne Gewichte aus der Auswahl...",
     statusApplyingMask: "Wende Auswahl als Ebenenmaske an...",
+    statusSwitchRgb: "Wandle Dokument zurück nach RGB...",
+    errNotRgb:
+      "Diese Methode benötigt das Dokument im RGB-Modus. Bitte umwandeln (Bild → Modus → RGB-Farbe) und erneut versuchen.",
     menuReload: "Plugin neu laden",
     menuManual: "Anleitung",
     menuRepo: "GitHub-Repository",
@@ -1398,6 +1404,24 @@ async function runLabAbWorkflow(
     report && report("statusApplyingMask");
     await applySelectionAsMask(doc, dupLayer);
   }
+
+  // Dokument-Modus wiederherstellen. Methode A hat oben das GESAMTE
+  // Dokument nach Lab gewandelt (der Stretch braucht die Lab-Kanäle) und
+  // vorher gab es KEINE Rückwandlung — das Dokument blieb dauerhaft in
+  // Lab. Folgen: Methode B (erwartet RGB) interpretierte die Lab-Pixel als
+  // RGB und lieferte Farbsalat, und der normale RGB-Workflow (Export,
+  // Ebenen per Deckkraft überblenden) war gebrochen, weil der Farbmodus
+  // dokumentweit gilt, nicht pro Ebene. Jetzt wandelt A am Ende zurück
+  // nach RGB. Die Umwandlung ist farbmetrisch, also erscheinungstreu — der
+  // eingebackene Stretch bleibt erhalten; nur sehr stark gestreckte Farben
+  // außerhalb des RGB-Farbraums werden an dessen Rand gekappt (für jede
+  // RGB-Nutzung ohnehin unvermeidlich). Bewusst BEDINGUNGSLOS: A wandelt
+  // immer nach Lab, also immer zurück.
+  report && report("statusSwitchRgb");
+  await action.batchPlay(
+    [{ _obj: "convertMode", to: { _class: "RGBColorMode" } }],
+    {}
+  );
 }
 
 /**
@@ -1562,6 +1586,29 @@ async function runReWorkflow(
 ) {
   const doc = app.activeDocument;
   if (!doc) throw new Error(t("errNoDocument"));
+
+  // Methode B rechnet direkt auf den Pixeln als R/G/B. Ist das Dokument
+  // NICHT in RGB (z. B. weil eine ältere Plugin-Version Methode A ohne
+  // Rückwandlung in Lab hinterlassen hat, oder weil der Modus von Hand
+  // umgestellt wurde), würden die Kanäle fehlinterpretiert -> stille
+  // Falschfarben statt eines Fehlers. Lieber klar abbrechen.
+  //
+  // Bewusst fail-open und POSITIV auf bekannte Nicht-RGB-Modi geprüft
+  // (statt "enthält kein RGB"): document.mode ist zwar dokumentiert als
+  // String wie "RGBColorMode"/"labColorMode", aber es gibt Forenberichte
+  // über abweichendes Verhalten. So bricht B nur ab, wenn ein Nicht-RGB-
+  // Modus SICHER erkannt wird; bei unerwartetem Wert läuft es wie bisher
+  // weiter (kein neuer Blocker durch eine unsichere Modus-Erkennung).
+  try {
+    const mode = String((doc && doc.mode) || "").toLowerCase();
+    const nonRgb = ["lab", "cmyk", "gray", "index", "bitmap", "duotone", "multichannel"];
+    if (nonRgb.some((m) => mode.indexOf(m) !== -1)) {
+      throw new Error(t("errNotRgb"));
+    }
+  } catch (e) {
+    if (e && e.message === t("errNotRgb")) throw e;
+    // Modus nicht sicher lesbar -> nicht blockieren.
+  }
 
   const labels = MULT_LABELS[space];
   const multTxt = mults.map((v, i) => `${labels[i]}=${v}`).join(" ");

@@ -792,6 +792,43 @@ Aufbauend auf dem Flyout-Menü von oben:
   passt wie die deutsche in eine Zeile). Diagnose per Breitenmessung, nicht
   per Vermutung.
 
+## Methode A wandelt zurück nach RGB + Version 1.1.0 (05.09.2026)
+
+**Der Fehler:** Methode A wandelte das Dokument nach Lab (für die
+Lab-Kanäle des Stretches), aber nie zurück — das Dokument blieb dauerhaft
+im Lab-Modus. Weil der Farbmodus in Photoshop **dokumentweit** gilt (nicht
+pro Ebene), hatte das zwei unschöne Folgen:
+
+- Wendete man danach Methode B an (die RGB-Pixel erwartet), wurden die
+  Lab-Kanäle als R/G/B fehlinterpretiert → stiller Farbsalat.
+- Der normale RGB-Workflow war gebrochen: Export, und vor allem das
+  Überblenden einer Methode-A- mit einer Methode-B-Ergebnisebene per
+  Deckkraft, ging nicht mehr, weil nie beide zugleich in RGB vorlagen.
+
+**Der Fix (Option „A wandelt zurück"):** Methode A wandelt das Dokument am
+Ende bedingungslos zurück nach RGB. Die Umwandlung ist farbmetrisch, also
+erscheinungstreu — der eingebackene Stretch bleibt erhalten; nur sehr
+stark gestreckte Farben außerhalb des RGB-Farbraums werden an dessen Rand
+gekappt (für jede RGB-Nutzung ohnehin unvermeidlich). Damit ist das
+Dokument nach A wieder RGB, B funktioniert, und das Überblenden zweier
+Ergebnisebenen ist wieder möglich.
+
+**Dazu als Absicherung:** Methode B bricht mit klarer Meldung ab, wenn das
+Dokument wider Erwarten nicht in RGB ist (statt still falsche Farben zu
+erzeugen). Die Modus-Erkennung ist fail-open — sie blockiert nur bei
+sicher erkanntem Nicht-RGB-Modus.
+
+**Version:** von 1.0.0 auf **1.1.0** (neue Funktionen seit 1.0.0 —
+Flyout-Menü, Sprachwahl im Menü — plus dieser Fix). Die Nummer steht in
+`manifest.json` und als `FALLBACK_VERSION` in `main.js`, beide auf 1.1.0.
+
+**Offener Gedanke für später:** Der wirklich saubere Weg wäre, A gar nicht
+mehr den Dokument-Modus wechseln zu lassen, sondern — wie Methode B — pro
+Pixel intern RGB→Lab→RGB zu rechnen. Dann bliebe das Dokument durchgehend
+RGB und keine andere Ebene würde je durch eine Umwandlung angefasst. Das
+ist ein größerer Umbau am (verifizierten) Rechenkern und wurde bewusst
+zurückgestellt.
+
 ## Bekannte offene Punkte / nächste Schritte mit Claude Code
 
 Ich habe den Code nicht gegen eine echte Photoshop-Instanz getestet – das
