@@ -41,18 +41,11 @@
       justify-content: space-between;
       margin-bottom: 4px;
     }
-    .lang-toggle-btn {
+    .header-icon {
       flex: 0 0 auto;
-      width: 28px;
-      height: 28px;
-      min-width: 28px;
-      padding: 0;
-      --spectrum-actionbutton-min-width: 28px;
-    }
-    .lang-toggle-btn img {
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
+      width: 22px;
+      height: 22px;
+      opacity: 0.6; /* "dezent" — gedämpft, nicht aufdringlich */
       display: block;
       pointer-events: none;
     }
@@ -200,9 +193,11 @@
 <body>
   <div class="header-row">
     <sp-heading size="XS">Umbra</sp-heading>
-    <sp-action-button id="langToggleBtn" class="lang-toggle-btn" quiet>
-      <img id="langFlagImg" src="icons/flag_en.png" alt="EN/DE" width="20" height="20" />
-    </sp-action-button>
+    <!-- Dezentes Umbra-Logo oben rechts. Die Sprachumschaltung (früher ein
+         Flaggen-Toggle an dieser Stelle) sitzt jetzt im Flyout-Menü
+         (Registerkarten-Menü oben rechts, entrypoints.setup() in main.js).
+         Das Bild ist rein dekorativ, nicht klickbar. -->
+    <img class="header-icon" src="icons/icon.png" alt="Umbra" />
   </div>
 
   <sp-divider size="small"></sp-divider>
@@ -260,7 +255,7 @@
     <sp-action-button id="methodBHelpBtn" class="help-btn" quiet title="Info">?</sp-action-button>
   </div>
 
-  <sp-checkbox id="adobeRgb" size="s" checked>Adobe RGB (1998) instead of sRGB — only relevant for LRE</sp-checkbox>
+  <sp-checkbox id="adobeRgb" size="s" checked>Adobe RGB (1998) instead of sRGB — LRE only</sp-checkbox>
 
   <sp-checkbox id="grayscale" size="s">Grayscale (convert enhancement to brightness only)</sp-checkbox>
 

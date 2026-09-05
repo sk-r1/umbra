@@ -765,6 +765,33 @@ gegen echtes Photoshop getestet. Für `shell.openExternal()` (Anleitung,
 Repo-Link) war zusätzlich eine neue Manifest-Berechtigung
 (`launchProcess`) nötig.
 
+## Sprachumschaltung ins Flyout-Menü, Logo statt Flagge, Layout-Fix (05.09.2026)
+
+Aufbauend auf dem Flyout-Menü von oben:
+
+- **Sprachumschaltung ins Menü verlegt:** Statt des Flaggen-Toggle-Buttons
+  oben rechts stehen jetzt zwei Einträge **Deutsch** / **English** im
+  Flyout-Menü; ein Häkchen (`checked`) markiert die aktive Sprache. Die
+  Beschriftungen sind Endonyme (jeweils in der eigenen Sprache) und werden
+  bewusst nicht übersetzt — übliche Konvention für Sprachwähler.
+- **Flaggen im Menü nicht möglich (verifiziert):** UXP-Menüeinträge
+  (`UxpMenuItem`) unterstützen laut Adobe-API nur `label`/`enabled`/
+  `checked`/Untermenüs — kein Icon oder Bild. Ein Flaggen-Bild neben den
+  Menüeinträgen geht daher technisch nicht; das native Häkchen übernimmt
+  die Markierung. (Vor dem Bauen gegen die API-Referenz geprüft.)
+- **U-Logo oben rechts:** An der Stelle des früheren Flaggen-Toggles steht
+  jetzt dezent (60% Deckkraft) das Umbra-Logo (`icons/icon.png`), rein
+  dekorativ. Die Flaggen-Dateien (`flag_de.png`/`flag_en.png`) werden nicht
+  mehr referenziert, liegen aber noch im `icons/`-Ordner.
+- **Layout-Inkonsistenz EN/DE behoben:** Die englische Adobe-RGB-Beschriftung
+  ("...instead of sRGB — only relevant for LRE") war mit gemessenen ~297px
+  breiter als der verfügbare Checkbox-Platz (~277px bei 325px-Panel) und
+  brach als einzige auf zwei Zeilen um. Das machte den Method-B-Block höher
+  als im Deutschen und schob das restliche Layout nach unten (weniger
+  Rand-Abstand unten). Gekürzt auf "...instead of sRGB — LRE only" (~238px,
+  passt wie die deutsche in eine Zeile). Diagnose per Breitenmessung, nicht
+  per Vermutung.
+
 ## Bekannte offene Punkte / nächste Schritte mit Claude Code
 
 Ich habe den Code nicht gegen eine echte Photoshop-Instanz getestet – das

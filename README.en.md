@@ -33,8 +33,9 @@ translation.
    won't find them and the panel icon stays blank/black.
 4. The "Umbra" panel appears in Photoshop under Window → Plugins.
 
-The panel has an EN/DE language toggle (flag icon, top right) if you'd
-rather use the German UI.
+The UI language (English / German) is switched from the panel's flyout
+menu (the hamburger icon on the tab): pick **Deutsch** or **English**, a
+checkmark shows the active one.
 
 ## Two methods
 

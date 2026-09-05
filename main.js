@@ -100,7 +100,13 @@ const I18N = {
     methodAHint:
       "Converts the document to Lab mode and stretches only a* and b*. Lightness L* is preserved exactly.",
     methodBTitle: "Method B — YRE / LRE",
-    adobeRgbText: "Adobe RGB (1998) instead of sRGB — only relevant for LRE",
+    // Bewusst gekürzt ("LRE only" statt "only relevant for LRE"): der lange
+    // Text (gemessen ~297px) übersteigt die verfügbare Checkbox-Breite
+    // (~277px bei 325px-Panel) und brach als einzige Beschriftung auf zwei
+    // Zeilen um. Das machte den Method-B-Block höher als im Deutschen und
+    // schob das gesamte restliche Layout nach unten (weniger Rand-Abstand
+    // unten). Die Kurzform (~238px) passt wie die deutsche in eine Zeile.
+    adobeRgbText: "Adobe RGB (1998) instead of sRGB — LRE only",
     yreMultLabel: "Channel multipliers YRE (Y / U / V)",
     lreMultLabel: "Channel multipliers LRE (L / a / b)",
     savePreset: "Save preset…",
@@ -306,11 +312,10 @@ function applyStaticTranslations() {
     sigmaWarningEl.textContent = t("sigmaWarning");
   }
 
-  // Flaggen-Icon zeigt die aktuell aktive Sprache
-  const langFlagImg = $("langFlagImg");
-  if (langFlagImg) {
-    langFlagImg.src = currentLang === "de" ? "icons/flag_de.png" : "icons/flag_en.png";
-  }
+  // (Früher wurde hier das Flaggen-Icon oben rechts auf die aktive Sprache
+  // gesetzt. Die Sprachumschaltung sitzt jetzt im Flyout-Menü; oben rechts
+  // steht ein statisches Umbra-Logo. Die aktive Sprache markiert im Menü
+  // ein Häkchen, siehe refreshMenuLanguageChecks().)
 
   updateMultDisplay();
 }
@@ -323,6 +328,7 @@ async function setLanguage(lang) {
   // an, da dort kein fester Text steht, sondern eine der Statusmeldungen.
   renderStatus();
   refreshMenuLabels();
+  refreshMenuLanguageChecks();
   await saveLangSetting(currentLang);
 }
 
@@ -734,13 +740,12 @@ async function initUI() {
   // gespeichertes "de" auch beim allerersten Öffnen des Menüs sofort
   // korrekt erscheint statt erst nach dem nächsten manuellen Umschalten.
   refreshMenuLabels();
+  // Häkchen im Sprach-Menü auf die gespeicherte Startsprache setzen.
+  refreshMenuLanguageChecks();
 
-  const langToggleBtn = $("langToggleBtn");
-  if (langToggleBtn) {
-    langToggleBtn.addEventListener("click", () => {
-      setLanguage(currentLang === "en" ? "de" : "en");
-    });
-  }
+  // (Der frühere Flaggen-Toggle-Button oben rechts entfällt — die
+  // Sprachumschaltung läuft jetzt über das Flyout-Menü, siehe
+  // invokeMenuItem() für die "langDe"/"langEn"-Einträge.)
 
   // Hilfe-Buttons: Klick blendet den zugehörigen Hinweistext ein/aus.
   // Gemeinsame Schleife statt drei fast identischer Blöcke.
@@ -922,6 +927,12 @@ async function initUI() {
 
 function invokeMenuItem(id) {
   switch (id) {
+    case "langDe":
+      setLanguage("de");
+      break;
+    case "langEn":
+      setLanguage("en");
+      break;
     case "menuReload":
       location.reload();
       break;
@@ -937,6 +948,31 @@ function invokeMenuItem(id) {
       break;
     // "menuVersion" ist enabled:false und damit nicht klickbar — kein
     // Fall nötig.
+  }
+}
+
+/**
+ * Setzt das Häkchen (checked) im Sprach-Menü auf die aktive Sprache.
+ *
+ * HINWEIS zur Flaggen-Frage: UXP-Menüeinträge (UxpMenuItem) unterstützen
+ * laut Adobe-API nur label/enabled/checked/submenu — KEIN Icon/Bild. Ein
+ * Flaggen-Bild neben den Einträgen ist daher im Flyout-Menü technisch
+ * nicht möglich; das native Häkchen markiert stattdessen die aktive
+ * Sprache. Die Beschriftungen "Deutsch"/"English" bleiben bewusst in der
+ * jeweils eigenen Sprache (Endonyme) — sie werden NICHT übersetzt, das
+ * ist die übliche Konvention für Sprachwähler.
+ */
+function refreshMenuLanguageChecks() {
+  try {
+    const panel = entrypoints.getPanel(UMBRA_PANEL_ID);
+    if (!panel) return;
+    const items = panel.menuItems;
+    const de = items.getItem("langDe");
+    const en = items.getItem("langEn");
+    if (de) de.checked = currentLang === "de";
+    if (en) en.checked = currentLang === "en";
+  } catch (err) {
+    console.warn("[Umbra] Sprach-Häkchen im Menü konnte nicht gesetzt werden:", err);
   }
 }
 
@@ -993,6 +1029,13 @@ try {
           invokeMenuItem(id);
         },
         menuItems: [
+          // Sprachwahl: Endonyme (immer in der eigenen Sprache), das
+          // Häkchen (checked) markiert die aktive. currentLang ist hier
+          // noch der Modul-Default ("en"); refreshMenuLanguageChecks() in
+          // initUI() setzt das Häkchen sofort auf die gespeicherte Sprache.
+          { id: "langDe", label: "Deutsch", checked: false },
+          { id: "langEn", label: "English", checked: true },
+          "-",
           // currentLang ist an dieser Stelle noch der Modul-Default
           // ("en"), da initUI() (das die gespeicherte Sprache lädt) erst
           // weiter unten läuft — refreshMenuLabels() in initUI() zieht
