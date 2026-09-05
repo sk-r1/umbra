@@ -1076,6 +1076,75 @@ async function applySelectionAsMask(doc, layer) {
 }
 
 // ---------------------------------------------------------------------
+// Gewichtete Statistik (gemeinsam für Methode A [2 Kanäle] und B [3])
+//
+// Beide Methoden brauchen denselben Ablauf — gewichteter Mittelwert,
+// dann gewichtete Kovarianzmatrix auf den zentrierten Werten —, nur mit
+// unterschiedlicher Kanalzahl. Ursprünglich als zwei fast identische
+// Kopien in applyStretchToLayerLab (2 Kanäle) und applyStretchToLayerRe
+// (3 Kanäle) geschrieben; hier zusammengeführt, NACHDEM beide Kopien
+// bereits denselben Fix (sumW>0-Schutz gegen die NaN-Kaskade bei leerer
+// Auswahl) unabhängig voneinander brauchten — genau die Sorte doppelter
+// Pflegeaufwand, die diese Zusammenführung vermeiden soll.
+// ---------------------------------------------------------------------
+
+/**
+ * Gewichteter Mittelwert über N Kanäle. `channels` ist ein Array von N
+ * gleich langen Float32Arrays (ein Array pro Kanal), `weights` entweder
+ * null (jedes Pixel zählt gleich mit Gewicht 1) oder ein Float32Array
+ * derselben Länge. Wirft bei nicht positiver Gewichtssumme (leere/winzige
+ * Auswahl, oder ein Längen-Mismatch von weights, der sumW zu NaN macht)
+ * einen klaren Fehler, statt eine NaN-Kaskade bis in die geschriebenen
+ * Pixel durchzureichen — `!(sumW > 0)` fängt 0, negativ UND NaN zugleich
+ * ab.
+ */
+function weightedMean(channels, weights, pixelCount) {
+  const n = channels.length;
+  const mean = new Array(n).fill(0);
+  let sumW = 0;
+  for (let i = 0; i < pixelCount; i++) {
+    const w = weights ? weights[i] : 1;
+    sumW += w;
+    for (let k = 0; k < n; k++) mean[k] += w * channels[k][i];
+  }
+  if (!(sumW > 0)) {
+    throw new Error(
+      `Interner Fehler: Die Auswahl-Gewichte ergeben keine gültige Summe (sumW=${sumW}). Ist die Auswahl leer oder zu klein?`
+    );
+  }
+  for (let k = 0; k < n; k++) mean[k] /= sumW;
+  return { mean, sumW };
+}
+
+/**
+ * Gewichtete symmetrische NxN-Kovarianzmatrix über N Kanäle. `mean` und
+ * `sumW` kommen von weightedMean() für dieselben `channels`/`weights`.
+ * Bessel-Korrektur (sumW-1) nur bei ausreichender effektiver Stichprobe
+ * (sumW>1), sonst wäre der Divisor 0 oder negativ — siehe weightedMean().
+ * Rückgabe zeilenweise (cov[i][j]), symmetrisch befüllt.
+ */
+function weightedCovariance(channels, mean, weights, pixelCount, sumW) {
+  const n = channels.length;
+  const cov = Array.from({ length: n }, () => new Array(n).fill(0));
+  const d = new Array(n);
+  for (let i = 0; i < pixelCount; i++) {
+    const w = weights ? weights[i] : 1;
+    for (let k = 0; k < n; k++) d[k] = channels[k][i] - mean[k];
+    for (let a = 0; a < n; a++) {
+      for (let b = a; b < n; b++) cov[a][b] += w * d[a] * d[b];
+    }
+  }
+  const div = sumW > 1 ? sumW - 1 : sumW;
+  for (let a = 0; a < n; a++) {
+    for (let b = a; b < n; b++) {
+      cov[a][b] /= div;
+      cov[b][a] = cov[a][b];
+    }
+  }
+  return cov;
+}
+
+// ---------------------------------------------------------------------
 // Methode A: Lab a/b (bisheriges Verhalten, unverändert)
 // ---------------------------------------------------------------------
 
@@ -1248,46 +1317,10 @@ async function applyStretchToLayerLab(
     B[i] = raw[o + 2] - neutral;
   }
 
-  let meanA = 0;
-  let meanB = 0;
-  let sumW = 0;
-  for (let i = 0; i < pixelCount; i++) {
-    const w = weights ? weights[i] : 1;
-    sumW += w;
-    meanA += w * A[i];
-    meanB += w * B[i];
-  }
-  // Schutz vor der NaN-Kaskade: ist sumW nicht positiv (leere/winzige
-  // Auswahl, oder ein Längen-Mismatch des Gewichtsfelds, bei dem
-  // weights[i] undefined wird und sumW zu NaN macht), wären alle
-  // folgenden Divisionen NaN — bis in die geschriebenen Pixel. Lieber
-  // hier mit klarer Meldung abbrechen. `!(sumW > 0)` fängt 0, negativ
-  // UND NaN zugleich ab.
-  if (!(sumW > 0)) {
-    throw new Error(
-      `Interner Fehler: Die Auswahl-Gewichte ergeben keine gültige Summe (sumW=${sumW}). Ist die Auswahl leer oder zu klein?`
-    );
-  }
-  meanA /= sumW;
-  meanB /= sumW;
-
-  let caa = 0;
-  let cab = 0;
-  let cbb = 0;
-  for (let i = 0; i < pixelCount; i++) {
-    const w = weights ? weights[i] : 1;
-    const da = A[i] - meanA;
-    const db = B[i] - meanB;
-    caa += w * da * da;
-    cab += w * da * db;
-    cbb += w * db * db;
-  }
-  // Bessel-Korrektur (sumW-1) nur, wenn genug effektive Stichprobe da ist;
-  // sonst würde der Divisor 0 oder negativ und die Kovarianz NaN/negativ.
-  const covDiv = sumW > 1 ? sumW - 1 : sumW;
-  caa /= covDiv;
-  cab /= covDiv;
-  cbb /= covDiv;
+  const { mean, sumW } = weightedMean([A, B], weights, pixelCount);
+  const [meanA, meanB] = mean;
+  const cov = weightedCovariance([A, B], mean, weights, pixelCount, sumW);
+  const [[caa, cab], [, cbb]] = cov;
 
   // Ziel-Sigma ist für 8-Bit-Bilder kalibriert (Slider 10–100). Bei
   // größerem Wertebereich (16-Bit) proportional mitskalieren, sonst wäre
@@ -1472,58 +1505,11 @@ async function applyStretchToLayerRe(
     C2[i] = c[2] * mults[2];
   }
 
-  // --- 2) Mittelwerte (gewichtet, falls eine Auswahl aktiv war) ---
-  const mean = [0, 0, 0];
-  let sumW = 0;
-  for (let i = 0; i < pixelCount; i++) {
-    const w = weights ? weights[i] : 1;
-    sumW += w;
-    mean[0] += w * C0[i];
-    mean[1] += w * C1[i];
-    mean[2] += w * C2[i];
-  }
-  // Siehe Methode A: `!(sumW > 0)` fängt leere/winzige Auswahl und einen
-  // NaN-Mismatch des Gewichtsfelds ab, bevor die Divisionen alles
-  // vergiften.
-  if (!(sumW > 0)) {
-    throw new Error(
-      `Interner Fehler: Die Auswahl-Gewichte ergeben keine gültige Summe (sumW=${sumW}). Ist die Auswahl leer oder zu klein?`
-    );
-  }
-  mean[0] /= sumW;
-  mean[1] /= sumW;
-  mean[2] /= sumW;
-
-  // --- 3) 3x3-Kovarianzmatrix (gewichtet) ---
-  const cov = [
-    [0, 0, 0],
-    [0, 0, 0],
-    [0, 0, 0],
-  ];
-  for (let i = 0; i < pixelCount; i++) {
-    const w = weights ? weights[i] : 1;
-    const d0 = C0[i] - mean[0];
-    const d1 = C1[i] - mean[1];
-    const d2 = C2[i] - mean[2];
-    cov[0][0] += w * d0 * d0;
-    cov[0][1] += w * d0 * d1;
-    cov[0][2] += w * d0 * d2;
-    cov[1][1] += w * d1 * d1;
-    cov[1][2] += w * d1 * d2;
-    cov[2][2] += w * d2 * d2;
-  }
-  // Bessel-Korrektur nur bei ausreichender effektiver Stichprobe (siehe
-  // Methode A), sonst wäre der Divisor 0 oder negativ.
-  const n = sumW > 1 ? sumW - 1 : sumW;
-  cov[0][0] /= n;
-  cov[0][1] /= n;
-  cov[0][2] /= n;
-  cov[1][1] /= n;
-  cov[1][2] /= n;
-  cov[2][2] /= n;
-  cov[1][0] = cov[0][1];
-  cov[2][0] = cov[0][2];
-  cov[2][1] = cov[1][2];
+  // --- 2) Mittelwerte + 3) Kovarianzmatrix (beide gewichtet, falls eine
+  //         Auswahl aktiv war) — siehe weightedMean()/weightedCovariance()
+  //         weiter oben, gemeinsam mit Methode A genutzt. ---
+  const { mean, sumW } = weightedMean([C0, C1, C2], weights, pixelCount);
+  const cov = weightedCovariance([C0, C1, C2], mean, weights, pixelCount, sumW);
 
   // --- 4) Karhunen-Loeve: Eigenzerlegung + Stretch-Matrix ---
   // (Der Stretch selbst rechnet immer auf der 0..255-Skala, unabhängig
