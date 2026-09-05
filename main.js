@@ -44,6 +44,14 @@ const uxp = require("uxp");
 const uxpFs = uxp.storage.localFileSystem;
 const uxpFormats = uxp.storage.formats;
 
+// Diagnose-Ausgaben (min/max der Rohkanäle) in die DevTools-Konsole.
+// Bewusst standardmäßig AUS: die Diagnose macht einen kompletten
+// zusätzlichen Durchlauf über alle Pixel und baut große Log-Strings —
+// überflüssige Arbeit auf dem ohnehin langsamen Rechenpfad, die kein
+// Endnutzer sieht. Zum Debuggen einer echten 8-/16-Bit-Datei hier auf
+// true setzen.
+const DEBUG = false;
+
 // ---------------------------------------------------------------------
 // Mehrsprachigkeit (EN/DE)
 //
@@ -100,6 +108,8 @@ const I18N = {
     errInvalidPresetFile: "File does not contain a valid preset.",
     presetSaved: (name, space) => `Preset "${name}" (${space}) saved.`,
     presetLoaded: (name, space) => `Preset "${name}" (${space}) loaded.`,
+    presetSpaceMismatch: (name, fileSpace, targetSpace) =>
+      `Note: preset "${name}" was saved for ${fileSpace} but loaded into ${targetSpace} — the channels mean different things there.`,
     presetSaveErrorPrefix: "Error while saving: ",
     presetLoadErrorPrefix: "Error while loading: ",
     sigmaWarning:
@@ -152,6 +162,8 @@ const I18N = {
     errInvalidPresetFile: "Datei enthält kein gültiges Preset.",
     presetSaved: (name, space) => `Preset "${name}" (${space}) gespeichert.`,
     presetLoaded: (name, space) => `Preset "${name}" (${space}) geladen.`,
+    presetSpaceMismatch: (name, fileSpace, targetSpace) =>
+      `Achtung: Preset "${name}" wurde für ${fileSpace} gespeichert, aber in ${targetSpace} geladen — die Kanäle bedeuten dort etwas anderes.`,
     presetSaveErrorPrefix: "Fehler beim Speichern: ",
     presetLoadErrorPrefix: "Fehler beim Laden: ",
     sigmaWarning:
@@ -537,10 +549,11 @@ async function loadPresetFromFile(space) {
     });
 
     const sigmaSlider = $("sigma");
-    const sigmaVal = $("sigmaVal");
     if (sigmaSlider && typeof data.sigma === "number") {
       sigmaSlider.value = String(data.sigma);
-      if (sigmaVal) sigmaVal.textContent = String(Math.round(data.sigma));
+      // Zahlanzeige UND die >60-Warnung gemeinsam nachziehen — sonst bleibt
+      // die Warnung nach dem Laden eines Presets mit hohem Sigma veraltet.
+      refreshSigmaUI();
     }
 
     const adobeRgbCheckbox = $("adobeRgb");
@@ -551,7 +564,16 @@ async function loadPresetFromFile(space) {
     updateMultDisplay();
     const displayName = String(file.name || "Preset").replace(/\.json$/i, "");
     setLoadedPresetName(space, displayName);
-    setStatus(t("presetLoaded", displayName, space));
+    // Das Preset speichert, für welchen Farbraum es gedacht war. Wird ein
+    // YRE-Preset in die LRE-Felder geladen (oder umgekehrt), sind die
+    // Multiplikatoren zwar formal gültig, bedeuten aber andere Kanäle
+    // (Y/U/V vs. L/a/b) — deshalb klar darauf hinweisen statt still zu
+    // übernehmen.
+    if (data.space && data.space !== space) {
+      setStatus(t("presetSpaceMismatch", displayName, data.space, space));
+    } else {
+      setStatus(t("presetLoaded", displayName, space));
+    }
   } catch (err) {
     console.warn("[Umbra] Preset laden fehlgeschlagen:", err);
     setStatus(
@@ -601,6 +623,29 @@ function wireButton(id, workFn, commandName) {
   });
 }
 
+/**
+ * Aktualisiert die Sigma-Zahlanzeige und die >60-Warnung anhand des
+ * aktuellen Slider-Werts. Bewusst auf Modul-Ebene statt als Closure in
+ * initUI(), damit auch das Laden eines Presets (loadPresetFromFile) die
+ * Warnung korrekt nachziehen kann.
+ */
+function refreshSigmaUI() {
+  const sigmaSlider = $("sigma");
+  const sigmaVal = $("sigmaVal");
+  const sigmaWarningEl = $("sigmaWarning");
+  if (!sigmaSlider || !sigmaVal) return;
+  const v = Number(sigmaSlider.value);
+  sigmaVal.textContent = String(Math.round(v));
+  if (sigmaWarningEl) {
+    if (v > 60) {
+      sigmaWarningEl.textContent = t("sigmaWarning");
+      sigmaWarningEl.classList.add("visible");
+    } else {
+      sigmaWarningEl.classList.remove("visible");
+    }
+  }
+}
+
 async function initUI() {
   currentLang = await loadLangSetting();
   applyStaticTranslations();
@@ -632,28 +677,15 @@ async function initUI() {
 
   const sigmaSlider = $("sigma");
   const sigmaVal = $("sigmaVal");
-  const sigmaWarningEl = $("sigmaWarning");
   if (sigmaSlider && sigmaVal) {
-    const update = () => {
-      const v = Number(sigmaSlider.value);
-      sigmaVal.textContent = String(Math.round(v));
-      if (sigmaWarningEl) {
-        if (v > 60) {
-          sigmaWarningEl.textContent = t("sigmaWarning");
-          sigmaWarningEl.classList.add("visible");
-        } else {
-          sigmaWarningEl.classList.remove("visible");
-        }
-      }
-    };
-    wireValueEvents(sigmaSlider, update);
-    update();
+    wireValueEvents(sigmaSlider, refreshSigmaUI);
+    refreshSigmaUI();
 
     const sigmaResetBtn = $("sigmaResetBtn");
     if (sigmaResetBtn) {
       sigmaResetBtn.addEventListener("click", () => {
         sigmaSlider.value = 25;
-        update();
+        refreshSigmaUI();
       });
     }
   } else {
@@ -1135,7 +1167,7 @@ async function applyStretchToLayerLab(
   // halbwegs ausgewogenen Foto ungefähr in der Bildmitte liegen, und
   // min/max von a*/b* sollten grob symmetrisch um den angenommenen
   // Neutralpunkt liegen.
-  {
+  if (DEBUG) {
     let lMin = Infinity, lMax = -Infinity, aMin = Infinity, aMax = -Infinity, bMin = Infinity, bMax = -Infinity;
     for (let i = 0; i < pixelCount; i++) {
       const o = i * components;
@@ -1171,6 +1203,17 @@ async function applyStretchToLayerLab(
     meanA += w * A[i];
     meanB += w * B[i];
   }
+  // Schutz vor der NaN-Kaskade: ist sumW nicht positiv (leere/winzige
+  // Auswahl, oder ein Längen-Mismatch des Gewichtsfelds, bei dem
+  // weights[i] undefined wird und sumW zu NaN macht), wären alle
+  // folgenden Divisionen NaN — bis in die geschriebenen Pixel. Lieber
+  // hier mit klarer Meldung abbrechen. `!(sumW > 0)` fängt 0, negativ
+  // UND NaN zugleich ab.
+  if (!(sumW > 0)) {
+    throw new Error(
+      `Interner Fehler: Die Auswahl-Gewichte ergeben keine gültige Summe (sumW=${sumW}). Ist die Auswahl leer oder zu klein?`
+    );
+  }
   meanA /= sumW;
   meanB /= sumW;
 
@@ -1185,9 +1228,12 @@ async function applyStretchToLayerLab(
     cab += w * da * db;
     cbb += w * db * db;
   }
-  caa /= sumW - 1;
-  cab /= sumW - 1;
-  cbb /= sumW - 1;
+  // Bessel-Korrektur (sumW-1) nur, wenn genug effektive Stichprobe da ist;
+  // sonst würde der Divisor 0 oder negativ und die Kovarianz NaN/negativ.
+  const covDiv = sumW > 1 ? sumW - 1 : sumW;
+  caa /= covDiv;
+  cab /= covDiv;
+  cbb /= covDiv;
 
   // Ziel-Sigma ist für 8-Bit-Bilder kalibriert (Slider 10–100). Bei
   // größerem Wertebereich (16-Bit) proportional mitskalieren, sonst wäre
@@ -1318,7 +1364,7 @@ async function applyStretchToLayerRe(
 
   // Diagnose (siehe ausführlicher Kommentar bei Methode A) — hier für die
   // rohen R/G/B-Werte, bevor irgendeine Farbraum-Umrechnung passiert.
-  {
+  if (DEBUG) {
     let rMin = Infinity, rMax = -Infinity, gMin = Infinity, gMax = -Infinity, bMin2 = Infinity, bMax2 = -Infinity;
     for (let i = 0; i < pixelCount; i++) {
       const o = i * components;
@@ -1378,6 +1424,14 @@ async function applyStretchToLayerRe(
     mean[1] += w * C1[i];
     mean[2] += w * C2[i];
   }
+  // Siehe Methode A: `!(sumW > 0)` fängt leere/winzige Auswahl und einen
+  // NaN-Mismatch des Gewichtsfelds ab, bevor die Divisionen alles
+  // vergiften.
+  if (!(sumW > 0)) {
+    throw new Error(
+      `Interner Fehler: Die Auswahl-Gewichte ergeben keine gültige Summe (sumW=${sumW}). Ist die Auswahl leer oder zu klein?`
+    );
+  }
   mean[0] /= sumW;
   mean[1] /= sumW;
   mean[2] /= sumW;
@@ -1400,7 +1454,9 @@ async function applyStretchToLayerRe(
     cov[1][2] += w * d1 * d2;
     cov[2][2] += w * d2 * d2;
   }
-  const n = sumW - 1;
+  // Bessel-Korrektur nur bei ausreichender effektiver Stichprobe (siehe
+  // Methode A), sonst wäre der Divisor 0 oder negativ.
+  const n = sumW > 1 ? sumW - 1 : sumW;
   cov[0][0] /= n;
   cov[0][1] /= n;
   cov[0][2] /= n;
@@ -1491,11 +1547,19 @@ async function writeBack(
   const maxValue = getMaxValue(outData);
   let outOfRange = 0;
   for (let i = 0; i < outData.length; i++) {
-    if (outData[i] < 0 || outData[i] > maxValue) outOfRange++;
+    const val = outData[i];
+    // Number.isFinite() zuerst: NaN/Infinity bestehen sonst BEIDE
+    // Vergleiche (NaN < 0 und NaN > maxValue sind je false) und würden
+    // ungeprüft durchrutschen — genau der Wert, den dieses Netz abfangen
+    // soll. Bei Float32-Ebenen (32 Bit) bliebe das NaN erhalten und ginge
+    // direkt an Photoshop; bei Uint8/Uint16 wird es beim Schreiben ins
+    // TypedArray zwar zu 0, aber ein klarer Fehler ist besser als eine
+    // still geschwärzte Ebene.
+    if (!Number.isFinite(val) || val < 0 || val > maxValue) outOfRange++;
   }
   if (outOfRange > 0) {
     throw new Error(
-      `Interner Fehler: ${outOfRange} Pixelwerte außerhalb des gültigen Bereichs (0-${maxValue}) vor dem Schreiben gefunden.`
+      `Interner Fehler: ${outOfRange} Pixelwerte ungültig oder außerhalb des gültigen Bereichs (0-${maxValue}) vor dem Schreiben gefunden.`
     );
   }
 
@@ -1574,8 +1638,35 @@ function buildStretchMatrix2x2(caa, cab, cbb, targetSigma) {
   const lambda1 = trace / 2 + disc;
   const lambda2 = trace / 2 - disc;
 
-  const eig1 = eigenvector2x2(caa, cab, cbb, lambda1);
-  const eig2 = eigenvector2x2(caa, cab, cbb, lambda2);
+  // Sind die beiden Eigenwerte (fast) gleich, ist die Kovarianzmatrix
+  // (fast) ein Vielfaches der Einheitsmatrix — die Eigenrichtungen sind
+  // dann nicht eindeutig, und JEDE orthonormale Basis ist korrekt (der
+  // Fehler ist O(disc/trace)). In diesem Fall MUSS die achsenparallele
+  // Basis [1,0]/[0,1] direkt gesetzt werden, aus zwei Gründen:
+  //  1. Bei exakt gleicher Varianz (caa≈cbb, cab≈0) liefert der Tie-Break
+  //     in eigenvector2x2() für BEIDE Eigenwerte denselben Vektor [0,1] —
+  //     die Stretch-Matrix verlöre dann die a*-Achse komplett, der
+  //     a*-Kanal würde flachgedrückt statt gestreckt.
+  //  2. Bei fast gleicher Varianz mit winzigem (aber nicht null) cab teilt
+  //     die Eigenvektor-Formel `(λ-caa)/cab` "fast null durch fast null"
+  //     und liefert numerischen Müll (nahezu parallele Vektoren).
+  // Die Prüfung ist deshalb bewusst RELATIV (disc gegen die Spur), nicht
+  // gegen eine feste absolute Schwelle für cab. Sind die Eigenwerte klar
+  // getrennt, ist die Formel gut konditioniert und wird genutzt.
+  let eig1, eig2;
+  const nearlyIsotropic = disc <= 1e-6 * Math.max(Math.abs(trace), 1);
+  if (nearlyIsotropic || Math.abs(cab) <= 1e-9) {
+    if (caa >= cbb) {
+      eig1 = [1, 0];
+      eig2 = [0, 1];
+    } else {
+      eig1 = [0, 1];
+      eig2 = [1, 0];
+    }
+  } else {
+    eig1 = eigenvector2x2(caa, cab, cbb, lambda1);
+    eig2 = eigenvector2x2(caa, cab, cbb, lambda2);
+  }
 
   const scale1 = lambda1 > 1e-6 ? targetSigma / Math.sqrt(lambda1) : 0;
   const scale2 = lambda2 > 1e-6 ? targetSigma / Math.sqrt(lambda2) : 0;
