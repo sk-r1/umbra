@@ -55,7 +55,10 @@
     }
   ],
   "requiredPermissions": {
-    "localFileSystem": "request"
+    "localFileSystem": "request",
+    "launchProcess": {
+      "schemes": ["https"]
+    }
   },
   "icons": [
     {

@@ -737,6 +737,34 @@ Changelog-Abschnitte oben stehen ebenfalls unverändert als Verlauf.
    Stand *vor* der Umbenennung. Es wird beim nächsten Packen durch eine
    neue Datei ersetzt.
 
+## Flyout-Menü an der Registerkarte (05.09.2026)
+
+Das Panel hat jetzt ein Menü am Hamburger-Icon oben rechts an der
+Registerkarte (UXP nennt das "Flyout Menu"), mit vier Einträgen:
+
+- **Plugin neu laden** — lädt das Panel neu (`location.reload()`),
+  nützlich nach einem Update ohne das UXP Developer Tool zu bemühen.
+- **Anleitung** — öffnet die passende README auf GitHub im
+  Standardbrowser (Deutsch/Englisch je nach eingestellter Panel-Sprache).
+- **GitHub-Repository** — öffnet das Repo direkt.
+- **Version x.x.x** (ausgegraut, nicht klickbar) — liest die Version zur
+  Laufzeit aus `UxpPluginInfo` statt sie ein zweites Mal von Hand zu
+  pflegen. Nur falls dieser Automatismus aus irgendeinem Grund nicht
+  greift, fällt es auf eine Konstante in `main.js` zurück, die dann von
+  Hand mit `manifest.json` synchron gehalten werden muss.
+
+Die Versionsanzeige im Panel-Körper selbst ist dafür entfallen (spart
+Platz). Die Menü-Beschriftungen wechseln mit der Panel-Sprache mit.
+
+**EHRLICHER HINWEIS:** Das ist die erste Nutzung von
+`entrypoints.setup()` in diesem Projekt — bisher initialisiert sich das
+Panel immer direkt beim Laden von `index.html`/`main.js`, nicht über die
+UXP-Entrypoints-Lifecycle. Beide Mechanismen sollten laut
+Adobe-Dokumentation nebeneinander funktionieren, das ist aber nicht
+gegen echtes Photoshop getestet. Für `shell.openExternal()` (Anleitung,
+Repo-Link) war zusätzlich eine neue Manifest-Berechtigung
+(`launchProcess`) nötig.
+
 ## Bekannte offene Punkte / nächste Schritte mit Claude Code
 
 Ich habe den Code nicht gegen eine echte Photoshop-Instanz getestet – das

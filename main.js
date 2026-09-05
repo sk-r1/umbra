@@ -43,6 +43,28 @@ const { app, core, imaging, action } = photoshop;
 const uxp = require("uxp");
 const uxpFs = uxp.storage.localFileSystem;
 const uxpFormats = uxp.storage.formats;
+const entrypoints = uxp.entrypoints;
+const shell = uxp.shell;
+
+// Muss mit manifest.json "id" und dem entrypoints[0].id übereinstimmen —
+// wird für das Flyout-Menü (entrypoints.setup()) gebraucht, um den Panel
+// später per entrypoints.getPanel() wiederzufinden.
+const UMBRA_PANEL_ID = "umbraPanel";
+
+const REPO_URL = "https://github.com/sk-r1/umbra";
+const MANUAL_URL_DE = "https://github.com/sk-r1/umbra/blob/main/README.md";
+const MANUAL_URL_EN = "https://github.com/sk-r1/umbra/blob/main/README.en.md";
+
+// Fallback-Versionsnummer für den Fall, dass entrypoints.plugin.create()
+// nicht wie erwartet feuert (z. B. weil das Panel klassisch über
+// index.html+Script statt über die entrypoints-Lifecycle geladen wird —
+// siehe Kommentar bei entrypoints.setup() weiter unten). Wird normalerweise
+// sofort durch die echte Version aus UxpPluginInfo überschrieben (siehe
+// refreshVersionMenuLabel()). MUSS bei einem Versionssprung von Hand mit
+// manifest.json "version" synchron gehalten werden, falls der
+// Automatismus aus irgendeinem Grund nicht greift.
+const FALLBACK_VERSION = "1.0.0";
+let pluginVersion = FALLBACK_VERSION;
 
 // Diagnose-Ausgaben (min/max der Rohkanäle) in die DevTools-Konsole.
 // Bewusst standardmäßig AUS: die Diagnose macht einen kompletten
@@ -123,6 +145,9 @@ const I18N = {
       "Only applies when a selection is active. Statistics are computed from the selection's content only; the result is masked back onto the layer with the chosen feather.",
     statusSelectionWeights: "Computing weights from selection...",
     statusApplyingMask: "Applying selection as layer mask...",
+    menuReload: "Reload Plugin",
+    menuManual: "User Manual",
+    menuRepo: "GitHub Repository",
   },
   de: {
     sigmaLabel: "Ziel-Kontrast (Sigma):",
@@ -177,6 +202,9 @@ const I18N = {
       "Wirkt nur, wenn eine Auswahl aktiv ist. Die Statistik wird nur aus dem Inhalt der Auswahl berechnet; das Ergebnis wird mit der gewählten Federung als Maske zurück auf die Ebene angewendet.",
     statusSelectionWeights: "Berechne Gewichte aus der Auswahl...",
     statusApplyingMask: "Wende Auswahl als Ebenenmaske an...",
+    menuReload: "Plugin neu laden",
+    menuManual: "Anleitung",
+    menuRepo: "GitHub-Repository",
   },
 };
 
@@ -294,6 +322,7 @@ async function setLanguage(lang) {
   // weiter unten) — applyStaticTranslations() fasst #status bewusst NICHT
   // an, da dort kein fester Text steht, sondern eine der Statusmeldungen.
   renderStatus();
+  refreshMenuLabels();
   await saveLangSetting(currentLang);
 }
 
@@ -697,6 +726,14 @@ function refreshSigmaUI() {
 async function initUI() {
   currentLang = await loadLangSetting();
   applyStaticTranslations();
+  // Das Flyout-Menü wurde bereits weiter unten (synchron, vor initUI())
+  // mit den Standardwerten auf Englisch aufgebaut, weil currentLang zu
+  // diesem frühen Zeitpunkt noch nicht aus den gespeicherten
+  // Einstellungen geladen war. Hier — sobald die echte Sprache feststeht
+  // — die Menü-Beschriftungen einmalig nachziehen, damit ein
+  // gespeichertes "de" auch beim allerersten Öffnen des Menüs sofort
+  // korrekt erscheint statt erst nach dem nächsten manuellen Umschalten.
+  refreshMenuLabels();
 
   const langToggleBtn = $("langToggleBtn");
   if (langToggleBtn) {
@@ -862,6 +899,117 @@ async function initUI() {
   );
 
   reportStatus("statusReady");
+}
+
+// ---------------------------------------------------------------------
+// Flyout-Menü (Registerkarten-Menü) — Reload, Anleitung, Repo-Link,
+// Version.
+//
+// EHRLICHER HINWEIS: Dies ist ein Stück UXP-Panel-Chrome
+// (entrypoints.setup), das bisher in diesem Projekt nicht verwendet
+// wurde — main.js initialisiert sein UI seit jeher direkt beim Laden
+// (initUI() unten), nicht über die entrypoints-Lifecycle
+// (create/show/hide/destroy). Beide Mechanismen sollten laut
+// Adobe-Dokumentation nebeneinander funktionieren (das Panel bleibt bei
+// index.html + eigenem Skript, entrypoints.setup() wird nur zusätzlich
+// für das Menü genutzt, mit einem leeren show()), aber das ist nicht
+// gegen echtes Photoshop getestet — nach dem bisherigen Muster dieses
+// Projekts ist beim ersten Testlauf mit einer Korrekturrunde zu rechnen.
+// Deshalb hier bewusst defensiv: entrypoints.setup() UND jeder Zugriff
+// auf das Menü danach sind in try/catch eingebettet, damit ein Problem
+// hier nicht das ganze Panel mit runterreißt.
+// ---------------------------------------------------------------------
+
+function invokeMenuItem(id) {
+  switch (id) {
+    case "menuReload":
+      location.reload();
+      break;
+    case "menuManual":
+      shell
+        .openExternal(currentLang === "de" ? MANUAL_URL_DE : MANUAL_URL_EN)
+        .catch((err) => console.warn("[Umbra] Anleitung konnte nicht geöffnet werden:", err));
+      break;
+    case "menuRepo":
+      shell
+        .openExternal(REPO_URL)
+        .catch((err) => console.warn("[Umbra] Repository konnte nicht geöffnet werden:", err));
+      break;
+    // "menuVersion" ist enabled:false und damit nicht klickbar — kein
+    // Fall nötig.
+  }
+}
+
+/**
+ * Zieht die sprachabhängigen Menü-Beschriftungen (Reload/Anleitung/Repo)
+ * auf den aktuellen currentLang nach — genutzt sowohl beim ersten Start
+ * (initUI(), sobald die gespeicherte Sprache geladen ist) als auch bei
+ * jedem manuellen Sprachwechsel (setLanguage()). "menuVersion" wird hier
+ * NICHT angefasst: "Version" heißt in beiden Sprachen gleich, die Zahl
+ * pflegt refreshVersionMenuLabel() separat.
+ */
+function refreshMenuLabels() {
+  try {
+    const panel = entrypoints.getPanel(UMBRA_PANEL_ID);
+    if (!panel) return;
+    const items = panel.menuItems;
+    ["menuReload", "menuManual", "menuRepo"].forEach((id) => {
+      const item = items.getItem(id);
+      if (item) item.label = t(id);
+    });
+  } catch (err) {
+    console.warn("[Umbra] Flyout-Menü konnte nicht aktualisiert werden:", err);
+  }
+}
+
+/** Zieht die Versionsanzeige im Menü auf die echte Plugin-Version aus
+ * UxpPluginInfo nach, sobald entrypoints.plugin.create() gefeuert hat
+ * (siehe Kommentar bei FALLBACK_VERSION oben). */
+function refreshVersionMenuLabel() {
+  try {
+    const panel = entrypoints.getPanel(UMBRA_PANEL_ID);
+    const item = panel && panel.menuItems && panel.menuItems.getItem("menuVersion");
+    if (item) item.label = `Version ${pluginVersion}`;
+  } catch (err) {
+    console.warn("[Umbra] Versionsanzeige im Menü konnte nicht aktualisiert werden:", err);
+  }
+}
+
+try {
+  entrypoints.setup({
+    plugin: {
+      create() {
+        // 'this' ist laut Doku ein UxpPluginInfo-Objekt mit .version.
+        pluginVersion = (this && this.version) || FALLBACK_VERSION;
+        refreshVersionMenuLabel();
+      },
+    },
+    panels: {
+      [UMBRA_PANEL_ID]: {
+        // Leeres show(): die eigentliche UI-Initialisierung läuft
+        // unverändert über initUI() unten, nicht über diese Lifecycle.
+        show() {},
+        invokeMenu(id) {
+          invokeMenuItem(id);
+        },
+        menuItems: [
+          // currentLang ist an dieser Stelle noch der Modul-Default
+          // ("en"), da initUI() (das die gespeicherte Sprache lädt) erst
+          // weiter unten läuft — refreshMenuLabels() in initUI() zieht
+          // die Beschriftungen sofort danach auf die richtige Sprache
+          // nach, siehe dortigen Kommentar.
+          { id: "menuReload", label: t("menuReload") },
+          { id: "menuManual", label: t("menuManual") },
+          { id: "menuRepo", label: t("menuRepo") },
+          "-",
+          { id: "menuVersion", label: `Version ${pluginVersion}`, enabled: false },
+          "-",
+        ],
+      },
+    },
+  });
+} catch (err) {
+  console.warn("[Umbra] Flyout-Menü konnte nicht eingerichtet werden:", err);
 }
 
 initUI().catch((err) => {

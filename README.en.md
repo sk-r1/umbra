@@ -78,6 +78,20 @@ of range.
   stretch also recenters the color result onto neutral, which tends to
   remove an overall color cast along with boosting contrast.
 
+## Panel flyout menu
+
+The hamburger icon on the panel's tab (UXP's "flyout menu") has four
+entries: **Reload Plugin** (reloads the panel — handy after an update
+without going through the UXP Developer Tool), **User Manual** (opens
+the matching README on GitHub, German or English depending on the
+panel's current language), **GitHub Repository**, and a greyed-out
+**Version x.x.x** line. The version number itself now lives only in
+`manifest.json` — the menu reads it at runtime instead of duplicating
+it. This is the project's first use of UXP's `entrypoints.setup()`
+lifecycle (previously the panel only ever initialized directly via
+`index.html`/`main.js`); expect a correction round after the first real
+test, per this project's usual pattern with UXP-specific assumptions.
+
 ## Presets
 
 Each of YRE and LRE has "Save preset…" / "Load preset…" icon buttons

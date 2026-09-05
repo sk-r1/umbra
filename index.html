@@ -191,10 +191,6 @@
       opacity: 0.85;
       min-height: 14px;
     }
-    #version {
-      opacity: 0.5;
-      margin: 6px 0 0 0;
-    }
   </style>
 </head>
 <body>
@@ -319,7 +315,10 @@
   <sp-divider size="small"></sp-divider>
 
   <sp-body id="status" size="XS"></sp-body>
-  <sp-body id="version" size="XS">v1.0.0</sp-body>
+  <!-- Versionsnummer steht jetzt im Flyout-Menü (Registerkarten-Menü
+       oben rechts, entrypoints.setup() in main.js) statt hier im
+       Panel-Körper — spart Platz und muss nicht mehr von Hand
+       synchron gehalten werden, siehe FALLBACK_VERSION in main.js. -->
 
   <script src="./main.js"></script>
 </body>
