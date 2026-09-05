@@ -37,17 +37,28 @@
     }
     .header-row {
       display: flex;
-      align-items: center;
-      justify-content: space-between;
+      align-items: center;      /* Logo und "Umbra" vertikal mittig zueinander */
+      justify-content: center;  /* die Gruppe (Logo + Text) mittig im Panel */
+      gap: 8px;                 /* kleiner Abstand zwischen Logo und Text */
       margin-bottom: 4px;
     }
     .header-icon {
       flex: 0 0 auto;
-      width: 22px;
-      height: 22px;
-      opacity: 0.6; /* "dezent" — gedämpft, nicht aufdringlich */
+      width: 24px;
+      height: 24px;
+      /* Volle Deckkraft (kräftig). 2x-Quelle (46px) auf 24px herunter-
+         skaliert = scharf auch auf HiDPI-Displays. */
       display: block;
       pointer-events: none;
+    }
+    .header-title {
+      /* sp-heading bringt eigene Ränder mit — auf 0 setzen, damit align-
+         items:center Logo und Text sauber mittig ausrichtet (vorher wirkte
+         der Text durch den Rand nach unten versetzt). line-height:1 lässt
+         die Textbox die Glyphen eng umschließen, sodass die optische Mitte
+         mit der Logo-Mitte zusammenfällt. */
+      margin: 0;
+      line-height: 1;
     }
     .section-header {
       display: flex;
@@ -191,13 +202,14 @@
   </style>
 </head>
 <body>
+  <!-- Kopfzeile: Umbra-Logo, gefolgt vom Wortmarke-Text "Umbra", als
+       Gruppe mittig im Panel. Das Logo ist rein dekorativ (nicht
+       klickbar); der Markenname steht daneben, daher alt="". Die
+       Sprachumschaltung sitzt im Flyout-Menü (entrypoints.setup() in
+       main.js), nicht mehr hier als Flaggen-Button. -->
   <div class="header-row">
-    <sp-heading size="XS">Umbra</sp-heading>
-    <!-- Dezentes Umbra-Logo oben rechts. Die Sprachumschaltung (früher ein
-         Flaggen-Toggle an dieser Stelle) sitzt jetzt im Flyout-Menü
-         (Registerkarten-Menü oben rechts, entrypoints.setup() in main.js).
-         Das Bild ist rein dekorativ, nicht klickbar. -->
-    <img class="header-icon" src="icons/icon.png" alt="Umbra" />
+    <img class="header-icon" src="icons/icon@2x.png" alt="" />
+    <sp-heading size="XS" class="header-title">Umbra</sp-heading>
   </div>
 
   <sp-divider size="small"></sp-divider>
