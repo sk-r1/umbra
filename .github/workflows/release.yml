@@ -1,0 +1,44 @@
+name: Release
+
+# Baut die installierbare Umbra-<Version>.ccx und hängt sie an ein GitHub-Release.
+# Auslöser: Push eines Tags wie "v1.2.0" (der Tag muss zur Version in manifest.json passen).
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check tag matches manifest version
+        run: |
+          MANIFEST_VERSION=$(python3 -c "import json;print(json.load(open('manifest.json'))['version'])")
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          if [ "$MANIFEST_VERSION" != "$TAG_VERSION" ]; then
+            echo "Tag ($TAG_VERSION) passt nicht zu manifest.json ($MANIFEST_VERSION)."
+            exit 1
+          fi
+          echo "VERSION=$MANIFEST_VERSION" >> "$GITHUB_ENV"
+
+      - name: Build .ccx
+        run: |
+          # Eine .ccx ist ein ZIP mit den Plugin-Dateien direkt im Wurzelverzeichnis.
+          # Nur die Laufzeit-Dateien einpacken (kein .git, keine READMEs, keine alten Icons).
+          zip -r "Umbra-${VERSION}.zip" manifest.json index.html main.js icons \
+            -x "icons/icons_old/*"
+          mv "Umbra-${VERSION}.zip" "Umbra-${VERSION}.ccx"
+          unzip -l "Umbra-${VERSION}.ccx"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Umbra-${{ env.VERSION }}.ccx
+          generate_release_notes: true

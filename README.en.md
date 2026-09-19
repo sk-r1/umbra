@@ -67,7 +67,8 @@ are reasonable guesses, **not the original values** — that's why
 they're freely editable in the UI. Results will resemble original
 DStretch output but won't be identical.
 
-Recommended Sigma for Method B: keep it fairly low (roughly 15–30).
+Recommended Sigma for Method B: keep it fairly low (roughly 15–30;
+the default is 15).
 DStretch's own default is 15; at Sigma 60 many pixels tend to clip out
 of range.
 

@@ -56,7 +56,8 @@ Schätzwerte, **keine Originalwerte**. Sie sind deshalb im UI frei
 editierbar, entsprechend Harmans YXX/LXX-Modus. Das Ergebnis wird dem
 Original-DStretch also ähneln, aber nicht damit identisch sein.
 
-**Sigma-Empfehlung für Methode B:** eher niedrig (ca. 15–30). DStretch
+**Sigma-Empfehlung für Methode B:** eher niedrig (ca. 15–30; Standardwert
+seit 1.2.0: 15). DStretch
 nutzt als Standard-Skala 15. Ein Test mit synthetischen, stark
 korrelierten Farbdaten ergab bei Sigma 60 rund 21 % abgeschnittene Pixel,
 bei Sigma 20 keine.
@@ -858,6 +859,27 @@ Rund um den RGB-Guard von Methode B, nach erstem Testen:
   mit „Ergebnis in Lab belassen" das Dokument in Lab hinterlassen hat und
   man es (z. B. vor Methode B) wieder in RGB braucht. Bei bereits
   RGB-Dokumenten ein No-op.
+
+## Sigma-Standardwert 15 + Release-Workflow, Version 1.2.0 (19.09.2026)
+
+Der Standardwert des Sigma-Reglers (Ziel-Kontrast) ist von 25 auf **15**
+gesenkt (Slider-Startwert, Reset-Knopf und interner Fallback).
+
+**Begründung (gemessen):** Ein Testbild (blasse Felsmalerei, 24 MP, 8 Bit)
+wurde in Photoshop mit Umbra verarbeitet und mit einer unabhängigen
+Python-Nachrechnung verglichen: Methode B stimmte exakt (max. 1 Stufe
+Abweichung), Methode A auf ±2 bei 97 % der Pixel. Der Rechenkern ist also
+korrekt. Anteil der Pixel mit mindestens einem auf 0/255 geklemmten Kanal
+bei Methode B: Sigma 25 → ca. 29 %, Sigma 20 → ca. 16 %, Sigma 15 → ca. 6 %,
+Sigma 10 → ca. 1 %. Sigma 15 lässt den Effekt kräftig, schneidet aber
+deutlich weniger ab. Der Regler (10–100) bleibt unverändert.
+
+**Neu:** `.github/workflows/release.yml` — baut bei einem Versions-Tag
+(`v*`) automatisch die installierbare `Umbra-<Version>.ccx` (nur
+`manifest.json`, `index.html`, `main.js`, `icons/`) und hängt sie an ein
+GitHub-Release. Der Tag muss zur Version in `manifest.json` passen.
+
+**Version:** 1.1.0 → **1.2.0** (`manifest.json` und `FALLBACK_VERSION`).
 
 ## Bekannte offene Punkte / nächste Schritte mit Claude Code
 
