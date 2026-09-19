@@ -20,6 +20,23 @@ translation.
 
 ## Installation
 
+### Recommended: ready-made plugin (`.ccx`)
+
+1. Download the latest `Umbra-x.y.z.ccx` from the
+   [Releases page](https://github.com/sk-r1/umbra/releases) (under
+   "Assets").
+2. Double-click the file. The **Creative Cloud Desktop app** starts the
+   installation. It will warn that the plugin comes from an **unofficial
+   source** (it is not in the Adobe Marketplace) — this is expected;
+   confirm and Umbra gets installed.
+3. Start (or restart) Photoshop: the "Umbra" panel appears under
+   Window → Plugins.
+
+If the installation fails: unload Umbra in the UXP Developer Tool first
+(if it is loaded there), close Photoshop and open the `.ccx` again.
+
+### For developers: testing with the UXP Developer Tool
+
 1. Install Adobe's **UXP Developer Tool** (free, via Creative Cloud
    Desktop or Adobe's developer site).
 2. In Photoshop: Preferences → Plugins → enable **"Developer Mode"**.

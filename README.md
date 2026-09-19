@@ -16,7 +16,24 @@ werden sichtbar.
   Stretch-Matrix, Pixel-Transformation) + UXP-`imaging`-API-Aufrufe
 - `icons/icon.png` / `icons/icon@2x.png` – Panel-Icon (1× = 23×23 px, 2× = 46×46 px)
 
-## Installation zum Testen
+## Installation
+
+### Empfohlen: fertiges Plugin (`.ccx`)
+
+1. Auf der [Releases-Seite](https://github.com/sk-r1/umbra/releases) die
+   aktuelle Datei `Umbra-x.y.z.ccx` herunterladen (unter „Assets").
+2. Doppelklick auf die Datei. Die **Creative Cloud Desktop App** startet
+   die Installation. Sie weist darauf hin, dass das Plugin aus einer
+   **inoffiziellen Quelle** stammt (es ist nicht im Adobe-Marketplace) —
+   das ist normal; mit Bestätigung wird Umbra installiert.
+3. Photoshop starten (bzw. neu starten): Das Panel „Umbra" erscheint unter
+   Fenster → Plugins.
+
+Falls die Installation fehlschlägt: Umbra vorher im UXP Developer Tool
+entladen (falls dort geladen), Photoshop schließen und die `.ccx` erneut
+per Doppelklick öffnen.
+
+### Für Entwickler: Testen mit dem UXP Developer Tool
 
 1. **UXP Developer Tool** von Adobe installieren (kostenlos, über die
    Creative Cloud Desktop App oder direkt von Adobes Entwicklerseite).
