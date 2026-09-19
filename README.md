@@ -881,6 +881,12 @@ GitHub-Release. Der Tag muss zur Version in `manifest.json` passen.
 
 **Version:** 1.1.0 → **1.2.0** (`manifest.json` und `FALLBACK_VERSION`).
 
+**Version 1.2.1 (19.09.2026):** Korrektur der `manifest.json`, damit sich die
+`.ccx` per Doppelklick installieren lässt (Fehler -4 = Manifest-Parse-Fehler
+im Creative-Cloud-Installer). `host` ist jetzt ein Objekt statt einer Liste,
+und das nicht dokumentierte Icon-Theme `"all"` entfällt. Das Paket wird
+ohne Ordner-Einträge im ZIP gebaut. Am Plugin-Verhalten ändert sich nichts.
+
 ## Bekannte offene Punkte / nächste Schritte mit Claude Code
 
 Ich habe den Code nicht gegen eine echte Photoshop-Instanz getestet – das

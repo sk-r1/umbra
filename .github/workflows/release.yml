@@ -31,11 +31,21 @@ jobs:
       - name: Build .ccx
         run: |
           # Eine .ccx ist ein ZIP mit den Plugin-Dateien direkt im Wurzelverzeichnis.
-          # Nur die Laufzeit-Dateien einpacken (kein .git, keine READMEs, keine alten Icons).
-          zip -r "Umbra-${VERSION}.zip" manifest.json index.html main.js icons \
-            -x "icons/icons_old/*"
-          mv "Umbra-${VERSION}.zip" "Umbra-${VERSION}.ccx"
-          unzip -l "Umbra-${VERSION}.ccx"
+          # Nur die Laufzeit-Dateien einpacken (kein .git, keine READMEs, keine alten Icons),
+          # ohne Ordner-Einträge im Archiv (so wie das lokal getestete Paket).
+          python3 - <<'PY'
+          import os, zipfile
+          v = os.environ["VERSION"]
+          files = ["manifest.json", "index.html", "main.js"]
+          for name in sorted(os.listdir("icons")):
+              if os.path.isfile(os.path.join("icons", name)):
+                  files.append("icons/" + name)
+          with zipfile.ZipFile(f"Umbra-{v}.ccx", "w", zipfile.ZIP_DEFLATED) as z:
+              for f in files:
+                  z.write(f, f)
+          for i in zipfile.ZipFile(f"Umbra-{v}.ccx").infolist():
+              print(i.filename, i.file_size)
+          PY
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
