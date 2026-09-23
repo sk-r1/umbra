@@ -904,6 +904,34 @@ im Creative-Cloud-Installer). `host` ist jetzt ein Objekt statt einer Liste,
 und das nicht dokumentierte Icon-Theme `"all"` entfällt. Das Paket wird
 ohne Ordner-Einträge im ZIP gebaut. Am Plugin-Verhalten ändert sich nichts.
 
+## Code-Review-Korrekturen (23.09.2026)
+
+- **16 Bit, Methode B:** Die Rückumrechnung nach RGB rundete schon auf
+  ganze 0..255-Werte. Ein 16-Bit-Dokument bekam dadurch nur 256 Tonwerte
+  pro Kanal (faktisch 8 Bit, Gefahr von Tonwertabrissen). Jetzt wird erst
+  beim Zurückschreiben gerundet. Bei 8 Bit ist das Ergebnis unverändert
+  (geprüft, identisch); nur mit „Graustufen" weichen einzelne Pixel um
+  höchstens 1 Stufe ab (genauer).
+- **32-Bit-Dokumente** werden mit klarer Meldung abgelehnt. Vorher rundete
+  die Rechnung jedes Pixel auf 0 oder 1 (Ergebnis unbrauchbar).
+- **Hintergrundebene** wird über Photoshops Ebenen-Eigenschaft gefunden,
+  nicht nur über die Namen „Hintergrund"/„Background". In einem Photoshop
+  in anderer Sprache hätte ein zweiter Lauf sonst die zuletzt erzeugte
+  Ergebnis-Ebene erneut gestreckt.
+- **Methode A auf einem Lab-Dokument** (nach „Ergebnis in Lab belassen"):
+  Die Umwandlung nach Lab entfällt dann. Mit Farbausgleich (CB) bricht A
+  dort ab, weil CB auf R/G/B-Werten rechnet und sonst still L/a/b
+  verzerrt hätte. CMYK/Graustufen werden jetzt auch bei A vor dem
+  Duplizieren abgelehnt (wie schon bei B).
+- **Methode A bei einem Fehler** wandelt das Dokument trotzdem zurück nach
+  RGB (sofern „Ergebnis in Lab belassen" aus ist), statt es in Lab
+  stehen zu lassen.
+- **Ebenen, die nicht an der Dokumentecke beginnen**, werden an ihre
+  ursprüngliche Position zurückgeschrieben statt nach links oben
+  verschoben. Passt eine Auswahl nicht zur Ebenengröße, bricht Umbra mit
+  Meldung ab statt still falsch zu gewichten.
+- Veraltete bzw. falsche Code-Kommentare korrigiert.
+
 ## Bekannte offene Punkte / nächste Schritte mit Claude Code
 
 Ich habe den Code nicht gegen eine echte Photoshop-Instanz getestet – das

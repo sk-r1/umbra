@@ -77,9 +77,9 @@ const DEBUG = false;
 // ---------------------------------------------------------------------
 // Mehrsprachigkeit (EN/DE)
 //
-// Bewusst zwei Buttons statt eines <select>-Dropdowns — ein natives
-// <select> hatte in einer früheren Version das komplette Panel lahmgelegt
-// (getElementById lieferte null, alles danach wurde nie ausgeführt).
+// Die Sprachwahl sitzt im Flyout-Menü (siehe entrypoints.setup() weiter
+// unten). Ein natives <select> im Panel hatte in einer früheren Version
+// das komplette Panel lahmgelegt — deshalb kein Dropdown.
 //
 // Sprachwahl wird im plugin-eigenen UXP-Datenordner gespeichert
 // (dieselbe Speicher-Art wie zuvor schon für Presets verwendet — Teil
@@ -155,6 +155,8 @@ const I18N = {
     statusSwitchRgb: "Converting document back to RGB...",
     errNotRgb:
       "This method needs the document in RGB mode. Please convert it (Image → Mode → RGB Color) and try again.",
+    errUnsupported32Bit:
+      "32-bit documents are not supported. Please convert to 16 or 8 bits per channel (Image → Mode) and try again.",
     menuReload: "Reload Plugin",
     menuManual: "User Manual",
     menuRepo: "GitHub Repository",
@@ -217,6 +219,8 @@ const I18N = {
     statusSwitchRgb: "Wandle Dokument zurück nach RGB...",
     errNotRgb:
       "Diese Methode benötigt das Dokument im RGB-Modus. Bitte umwandeln (Bild → Modus → RGB-Farbe) und erneut versuchen.",
+    errUnsupported32Bit:
+      "32-Bit-Dokumente werden nicht unterstützt. Bitte auf 16 oder 8 Bit pro Kanal umwandeln (Bild → Modus) und erneut versuchen.",
     menuReload: "Plugin neu laden",
     menuManual: "Anleitung",
     menuRepo: "GitHub-Repository",
@@ -426,6 +430,7 @@ function reportStatusError(key, suffix) {
 // präfix) statt über den rohen, an die Ursprungssprache gebundenen Text.
 const TRANSLATABLE_ERROR_KEYS = [
   "errNotRgb",
+  "errUnsupported32Bit",
   "errNoDocument",
   "errNoLayer",
   "errInvalidPresetFile",
@@ -735,12 +740,6 @@ async function loadPresetFromFile(space) {
 }
 
 /**
- * Hängt einen Klick-Handler an einen Button. Fehlt der Button (z. B. weil
- * UXP ein Element nicht unterstützt), wird das nur geloggt statt eine
- * Exception zu werfen — sonst reißt ein einzelnes Element die komplette
- * Initialisierung mit und ALLE Bedienelemente bleiben tot.
- */
-/**
  * Registriert einen Wert-Änderungs-Handler auf einem Bedienelement.
  * Bewusst mehrere Event-Typen gleichzeitig: native Elemente feuern
  * "input"/"change", Spectrum Web Components teils zusätzlich eigene
@@ -757,6 +756,12 @@ function wireValueEvents(el, handler) {
   });
 }
 
+/**
+ * Hängt einen Klick-Handler an einen Button. Fehlt der Button (z. B. weil
+ * UXP ein Element nicht unterstützt), wird das nur geloggt statt eine
+ * Exception zu werfen — sonst reißt ein einzelnes Element die komplette
+ * Initialisierung mit und ALLE Bedienelemente bleiben tot.
+ */
 function wireButton(id, workFn, commandName) {
   const btn = $(id);
   if (!btn) {
@@ -1195,7 +1200,19 @@ function buildLayerSuffix(baseLabel, sigma, saturation, colorBalance, grayscale)
 }
 
 async function duplicateBaseLayer(doc, suffix, report) {
+  // Hintergrundebene zuerst über die DOM-Eigenschaft suchen, nicht nur über
+  // den Namen: In einem Photoshop in anderer Sprache (z. B. Französisch
+  // "Arrière-plan") griffe sonst der Rückfall auf die aktive Ebene — und
+  // die ist nach einem Lauf die ERGEBNIS-Ebene. Ein zweiter Lauf hätte
+  // dann still das bereits gestreckte Ergebnis erneut gestreckt.
+  let background = null;
+  try {
+    background = doc.backgroundLayer || null;
+  } catch (e) {
+    background = null;
+  }
   const baseLayer =
+    background ||
     doc.layers.find(
       (l) => l.name === "Hintergrund" || l.name === "Background"
     ) ||
@@ -1208,6 +1225,56 @@ async function duplicateBaseLayer(doc, suffix, report) {
   dupLayer.name = `${baseLayer.name} – ${suffix}`;
   doc.activeLayers = [dupLayer];
   return dupLayer;
+}
+
+// ---------------------------------------------------------------------
+// Dokument-Prüfung vor dem Rechnen (gemeinsam für Methode A und B)
+// ---------------------------------------------------------------------
+
+// Farbmodi, deren Kanäle KEIN R/G/B sind. Bewusst POSITIV aufgezählt und
+// fail-open: document.mode ist zwar als String wie "RGBColorMode"/
+// "labColorMode" dokumentiert, aber es gibt Forenberichte über
+// abweichendes Verhalten. Blockiert wird deshalb nur ein SICHER erkannter
+// Nicht-RGB-Modus; ein unerwarteter Wert blockiert nicht.
+const NON_RGB_MODES = ["lab", "cmyk", "gray", "index", "bitmap", "duotone", "multichannel"];
+
+function docModeLower(doc) {
+  try {
+    return String((doc && doc.mode) || "").toLowerCase();
+  } catch (e) {
+    return "";
+  }
+}
+
+function isLabDocument(doc) {
+  return docModeLower(doc).indexOf("lab") !== -1;
+}
+
+/**
+ * Bricht VOR dem Duplizieren der Ebene mit klarer Meldung ab, wenn das
+ * Dokument nicht verarbeitet werden kann — statt stiller Falschfarben:
+ * - Nicht-RGB-Modus: die Kanäle würden als R/G/B fehlinterpretiert.
+ *   Methode A darf ein Lab-Dokument bekommen (allowLab), z. B. nach einem
+ *   Lauf mit "Ergebnis in Lab belassen".
+ * - 32 Bit: Die Rechnung rundet auf ganzzahlige Tonwerte; bei 32-Bit-
+ *   Gleitkommawerten (0..1) würde jedes Pixel auf 0 oder 1 gerundet.
+ *   Zusätzlich fängt getMaxValue() 32-Bit-Daten beim Lesen hart ab, falls
+ *   diese Vorab-Prüfung die Bittiefe nicht erkennt.
+ */
+function assertSupportedDocument(doc, allowLab) {
+  let bits = "";
+  try {
+    bits = String(doc.bitsPerChannel || "");
+  } catch (e) {
+    bits = "";
+  }
+  if (bits.indexOf("32") !== -1) throw new Error(t("errUnsupported32Bit"));
+
+  const mode = docModeLower(doc);
+  const blocked = NON_RGB_MODES.filter((m) => !(allowLab && m === "lab"));
+  if (blocked.some((m) => mode.indexOf(m) !== -1)) {
+    throw new Error(t("errNotRgb"));
+  }
 }
 
 // ---------------------------------------------------------------------
@@ -1403,6 +1470,15 @@ async function applySelectionAsMask(doc, layer) {
  * ab.
  */
 function weightedMean(channels, weights, pixelCount) {
+  // Die Gewichte stammen aus einer dokumentgroßen Hilfsebene. Ist die
+  // Ebene kleiner als das Dokument (keine Hintergrundebene, sondern eine
+  // beschnittene Ebene), passen die Pixel nicht zueinander — dann lieber
+  // klar abbrechen als eine still falsch gewichtete Statistik rechnen.
+  if (weights && weights.length !== pixelCount) {
+    throw new Error(
+      "Interner Fehler: Die Auswahl passt nicht zur Größe der Ebene. Bitte ohne Auswahl rechnen oder eine Hintergrundebene verwenden."
+    );
+  }
   const n = channels.length;
   const mean = new Array(n).fill(0);
   let sumW = 0;
@@ -1449,8 +1525,12 @@ function weightedCovariance(channels, mean, weights, pixelCount, sumW) {
 }
 
 // ---------------------------------------------------------------------
-// Methode A: Lab a/b (bisheriges Verhalten, unverändert)
+// Methode A: Lab a/b
 // ---------------------------------------------------------------------
+
+function convertDocumentMode(modeClass) {
+  return action.batchPlay([{ _obj: "convertMode", to: { _class: modeClass } }], {});
+}
 
 async function runLabAbWorkflow(
   targetSigma,
@@ -1463,6 +1543,14 @@ async function runLabAbWorkflow(
 ) {
   const doc = app.activeDocument;
   if (!doc) throw new Error(t("errNoDocument"));
+
+  // Lab ist hier erlaubt: Nach einem Lauf mit "Ergebnis in Lab belassen"
+  // liegt das Dokument schon in Lab — dann entfällt die Umwandlung nach
+  // Lab einfach. Der Farbausgleich (CB) rechnet aber auf R/G/B-Werten und
+  // würde auf einem Lab-Dokument still L/a/b skalieren -> dann abbrechen.
+  assertSupportedDocument(doc, true);
+  const alreadyLab = isLabDocument(doc);
+  if (alreadyLab && colorBalance) throw new Error(t("errNotRgb"));
 
   // "Lab a/b" bewusst wie "YRE"/"LRE" bei Methode B: ein fester, nicht
   // übersetzter technischer Bezeichner (steht so auch unübersetzt in der
@@ -1492,25 +1580,38 @@ async function runLabAbWorkflow(
     await applyGrayWorldBalance(doc, dupLayer);
   }
 
-  report && report("statusSwitchLab");
-  await action.batchPlay(
-    [{ _obj: "convertMode", to: { _class: "labColorMode" } }],
-    {}
-  );
+  if (!alreadyLab) {
+    report && report("statusSwitchLab");
+    await convertDocumentMode("labColorMode");
+  }
 
-  report && report("statusComputingLabAB");
-  await applyStretchToLayerLab(
-    doc,
-    dupLayer,
-    targetSigma,
-    preserveMean,
-    saturation,
-    weights
-  );
+  try {
+    report && report("statusComputingLabAB");
+    await applyStretchToLayerLab(
+      doc,
+      dupLayer,
+      targetSigma,
+      preserveMean,
+      saturation,
+      weights
+    );
 
-  if (useSelection) {
-    report && report("statusApplyingMask");
-    await applySelectionAsMask(doc, dupLayer);
+    if (useSelection) {
+      report && report("statusApplyingMask");
+      await applySelectionAsMask(doc, dupLayer);
+    }
+  } catch (err) {
+    // Auch bei einem Fehler das Dokument nicht in Lab zurücklassen (siehe
+    // Begründung unten) — die Rückwandlung darf aber den eigentlichen
+    // Fehler nicht überdecken.
+    if (!keepLab) {
+      try {
+        await convertDocumentMode("RGBColorMode");
+      } catch (e) {
+        console.warn("[Umbra] Rückwandlung nach RGB nach Fehler fehlgeschlagen:", e);
+      }
+    }
+    throw err;
   }
 
   // Dokument-Modus wiederherstellen. Methode A hat oben das GESAMTE
@@ -1533,10 +1634,7 @@ async function runLabAbWorkflow(
   // ihn der RGB-Guard am Anfang von runReWorkflow mit klarer Meldung ab.
   if (!keepLab) {
     report && report("statusSwitchRgb");
-    await action.batchPlay(
-      [{ _obj: "convertMode", to: { _class: "RGBColorMode" } }],
-      {}
-    );
+    await convertDocumentMode("RGBColorMode");
   }
 }
 
@@ -1586,7 +1684,7 @@ async function applyGrayWorldBalance(doc, layer) {
     if (components >= 4) outData[o + 3] = raw[o + 3];
   }
 
-  await writeBack(doc, layer, imageData, outData, width, height, components);
+  await writeBack(doc, layer, imageData, outData, width, height, components, pixelData.sourceBounds);
 }
 
 async function applyStretchToLayerLab(
@@ -1681,7 +1779,7 @@ async function applyStretchToLayerLab(
     if (hasAlpha) outData[o + 3] = raw[o + 3];
   }
 
-  await writeBack(doc, layer, imageData, outData, width, height, components);
+  await writeBack(doc, layer, imageData, outData, width, height, components, pixelData.sourceBounds);
 }
 
 // ---------------------------------------------------------------------
@@ -1704,27 +1802,10 @@ async function runReWorkflow(
   if (!doc) throw new Error(t("errNoDocument"));
 
   // Methode B rechnet direkt auf den Pixeln als R/G/B. Ist das Dokument
-  // NICHT in RGB (z. B. weil eine ältere Plugin-Version Methode A ohne
-  // Rückwandlung in Lab hinterlassen hat, oder weil der Modus von Hand
-  // umgestellt wurde), würden die Kanäle fehlinterpretiert -> stille
-  // Falschfarben statt eines Fehlers. Lieber klar abbrechen.
-  //
-  // Bewusst fail-open und POSITIV auf bekannte Nicht-RGB-Modi geprüft
-  // (statt "enthält kein RGB"): document.mode ist zwar dokumentiert als
-  // String wie "RGBColorMode"/"labColorMode", aber es gibt Forenberichte
-  // über abweichendes Verhalten. So bricht B nur ab, wenn ein Nicht-RGB-
-  // Modus SICHER erkannt wird; bei unerwartetem Wert läuft es wie bisher
-  // weiter (kein neuer Blocker durch eine unsichere Modus-Erkennung).
-  try {
-    const mode = String((doc && doc.mode) || "").toLowerCase();
-    const nonRgb = ["lab", "cmyk", "gray", "index", "bitmap", "duotone", "multichannel"];
-    if (nonRgb.some((m) => mode.indexOf(m) !== -1)) {
-      throw new Error(t("errNotRgb"));
-    }
-  } catch (e) {
-    if (e && e.message === t("errNotRgb")) throw e;
-    // Modus nicht sicher lesbar -> nicht blockieren.
-  }
+  // NICHT in RGB (z. B. nach Methode A mit "Ergebnis in Lab belassen"),
+  // würden die Kanäle fehlinterpretiert -> stille Falschfarben statt eines
+  // Fehlers. Lieber klar abbrechen (Details bei assertSupportedDocument).
+  assertSupportedDocument(doc, false);
 
   const labels = MULT_LABELS[space];
   const multTxt = mults.map((v, i) => `${labels[i]}=${v}`).join(" ");
@@ -1840,10 +1921,12 @@ async function applyStretchToLayerRe(
 
   // --- 1) Auf 0..255 normalisieren, in den Farbraum konvertieren,
   //         Kanäle skalieren. Die Farbraum-Formeln (Gammakorrektur etc.)
-  //         sind für den 0..255-Bereich geschrieben; die eigentliche
-  //         Rechengenauigkeit bleibt durch die Float32-Zwischenwerte
-  //         erhalten, es geht nur die letzte Nachkommastelle der
-  //         16-Bit-Auflösung verloren. ---
+  //         sind für den 0..255-Bereich geschrieben, rechnen aber mit
+  //         Nachkommastellen. Gerundet wird erst ganz am Ende auf die
+  //         native Bittiefe — so bleibt die volle 16-Bit-Auflösung
+  //         erhalten. (Früher rundeten die Rückumrechnungen schon auf
+  //         ganze 0..255-Werte; ein 16-Bit-Dokument bekam dadurch nur
+  //         256 Tonwerte pro Kanal, also faktisch 8 Bit.) ---
   const C0 = new Float32Array(pixelCount);
   const C1 = new Float32Array(pixelCount);
   const C2 = new Float32Array(pixelCount);
@@ -1911,7 +1994,7 @@ async function applyStretchToLayerRe(
     let outG = rgb[1];
     let outB = rgb[2];
     if (grayscale) {
-      const lum = Math.round(0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]);
+      const lum = 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2];
       outR = outG = outB = clamp255(lum);
     }
 
@@ -1922,7 +2005,7 @@ async function applyStretchToLayerRe(
     if (hasAlpha) outData[o + 3] = raw[o + 3];
   }
 
-  await writeBack(doc, layer, imageData, outData, width, height, components);
+  await writeBack(doc, layer, imageData, outData, width, height, components, pixelData.sourceBounds);
 }
 
 // ---------------------------------------------------------------------
@@ -1936,23 +2019,21 @@ async function writeBack(
   outData,
   width,
   height,
-  components
+  components,
+  sourceBounds
 ) {
   // Sicherheitsnetz: Sollte trotz clampTo() irgendwo ein Wert außerhalb
   // des gültigen Bereichs stehen (z. B. durch einen Rechenfehler), lieber
   // hier mit einer klaren eigenen Meldung abbrechen als Photoshops
-  // kryptischen "outside the Photoshop range"-Fehler zu riskieren.
+  // kryptischen "outside the Photoshop range"-Fehler zu riskieren. Greift
+  // vor allem bei 16 Bit: Uint16 fasst Werte bis 65535, Photoshop erlaubt
+  // nur bis 32768. (NaN kann hier nicht mehr auftauchen — beim Schreiben
+  // ins Uint8/Uint16-Array wird es bereits zu 0; die NaN-Quellen sind
+  // deshalb weiter oben abgesichert, siehe weightedMean().)
   const maxValue = getMaxValue(outData);
   let outOfRange = 0;
   for (let i = 0; i < outData.length; i++) {
     const val = outData[i];
-    // Number.isFinite() zuerst: NaN/Infinity bestehen sonst BEIDE
-    // Vergleiche (NaN < 0 und NaN > maxValue sind je false) und würden
-    // ungeprüft durchrutschen — genau der Wert, den dieses Netz abfangen
-    // soll. Bei Float32-Ebenen (32 Bit) bliebe das NaN erhalten und ginge
-    // direkt an Photoshop; bei Uint8/Uint16 wird es beim Schreiben ins
-    // TypedArray zwar zu 0, aber ein klarer Fehler ist besser als eine
-    // still geschwärzte Ebene.
     if (!Number.isFinite(val) || val < 0 || val > maxValue) outOfRange++;
   }
   if (outOfRange > 0) {
@@ -1968,11 +2049,19 @@ async function writeBack(
     colorSpace: imageData.colorSpace,
   });
 
-  await imaging.putPixels({
+  // Ohne targetBounds setzt putPixels die Pixel an die linke obere
+  // Dokumentecke. Für eine Hintergrundebene ist das dasselbe; eine Ebene,
+  // die woanders beginnt, würde aber verschoben. Deshalb an die Stelle
+  // zurückschreiben, von der getPixels gelesen hat.
+  const putOptions = {
     documentID: doc.id,
     layerID: layer.id,
     imageData: newImageData,
-  });
+  };
+  if (sourceBounds && Number.isFinite(sourceBounds.left) && Number.isFinite(sourceBounds.top)) {
+    putOptions.targetBounds = { left: sourceBounds.left, top: sourceBounds.top };
+  }
+  await imaging.putPixels(putOptions);
 
   newImageData.dispose();
   imageData.dispose();
@@ -2003,7 +2092,11 @@ function clamp255(v) {
  */
 function getMaxValue(raw) {
   if (raw instanceof Uint16Array) return 32768;
-  if (raw instanceof Float32Array) return 1;
+  // 32 Bit (Gleitkomma 0..1, HDR auch darüber): Die Rechnung rundet auf
+  // ganzzahlige Tonwerte — hier würde jedes Pixel auf 0 oder 1 gerundet.
+  // Harte Sperre als Netz, falls assertSupportedDocument() die Bittiefe
+  // vorab nicht erkannt hat.
+  if (raw instanceof Float32Array) throw new Error(t("errUnsupported32Bit"));
   return 255; // Uint8Array / Uint8ClampedArray
 }
 
@@ -2202,11 +2295,14 @@ function rgbToYuv(r, g, b) {
   ];
 }
 
+// Die Rückumrechnungen (yuvToRgb, linearToSrgb, linearToAdobeRgb) runden
+// bewusst NICHT, sondern begrenzen nur auf 0..255 — gerundet wird erst
+// beim Zurückschreiben auf die native Bittiefe (siehe applyStretchToLayerRe).
 function yuvToRgb(y, u, v) {
   return [
-    clamp255(Math.round(y + 1.13983 * v)),
-    clamp255(Math.round(y - 0.39465 * u - 0.5806 * v)),
-    clamp255(Math.round(y + 2.03211 * u)),
+    clamp255(y + 1.13983 * v),
+    clamp255(y - 0.39465 * u - 0.5806 * v),
+    clamp255(y + 2.03211 * u),
   ];
 }
 
@@ -2233,14 +2329,14 @@ function srgbToLinear(c) {
 }
 function linearToSrgb(c) {
   const val = c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055;
-  return clamp255(Math.round(val * 255));
+  return clamp255(val * 255);
 }
 
 function adobeRgbToLinear(c) {
   return Math.pow(c / 255, 2.2);
 }
 function linearToAdobeRgb(c) {
-  return clamp255(Math.round(Math.pow(Math.max(c, 0), 1 / 2.2) * 255));
+  return clamp255(Math.pow(Math.max(c, 0), 1 / 2.2) * 255);
 }
 
 const PROFILES = {
