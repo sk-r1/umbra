@@ -48,6 +48,33 @@ per Doppelklick öffnen.
    bleibt schwarz.
 4. Das Panel "Umbra" erscheint in Photoshop unter Fenster → Plugins.
 
+## Empfohlene Einstellungen: 16 Bit, Adobe RGB oder sRGB
+
+Für die besten Ergebnisse Bilder in **16 Bit** und in **Adobe RGB (1998)**
+oder **sRGB** an Photoshop übergeben (Beispiel unten: Adobe RGB):
+
+- **Camera Raw:** unten in der Mitte auf die Workflow-Zeile klicken →
+  Farbraum „Adobe RGB (1998)", Farbtiefe „16 Bits/Kanal".
+- **Lightroom Classic:** Voreinstellungen → Externe Bearbeitung →
+  Farbraum „AdobeRGB (1998)", Bittiefe „16 Bit/Komponente".
+  (Standard ist dort ProPhoto RGB.)
+
+**Warum 16 Bit:** Umbra verstärkt gerade die schwachen Farbunterschiede
+sehr stark — bei blassen Pigmenten oft um ein Vielfaches. In 8 Bit
+werden dabei aus feinen Tonwertstufen grobe Sprünge (Tonwertabrisse,
+Streifen in Pigmentflächen). 16 Bit hat rund 128-mal feinere Stufen, die
+Übergänge bleiben auch nach starker Verstärkung weich. Nachteil: doppelte
+Dateigröße. Für JPEG wandelt Photoshop beim Speichern ohnehin auf 8 Bit
+— dann ist die Rechnung aber schon in voller Genauigkeit passiert.
+
+**Warum Adobe RGB oder sRGB:** Methode B (LRE) rechnet mit den Formeln
+für genau diese beiden Farbräume. Das Häkchen „Adobe RGB statt sRGB"
+muss zum Bild passen: an für Adobe RGB (Standard), aus für sRGB. Ein
+Bild in ProPhoto RGB (Lightroom-Standard) funktioniert zwar, wird von LRE
+aber so gerechnet, als wäre es Adobe RGB — das Ergebnis sieht dann anders
+aus als beim selben Bild in Adobe RGB. Die Farbraum-Einstellung in der
+Kamera spielt bei RAW-Dateien keine Rolle; sie gilt nur für JPEGs.
+
 ## Zwei Methoden
 
 **Methode A — Lab a/b (bisheriges Verhalten)**

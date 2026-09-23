@@ -54,6 +54,33 @@ The UI language (English / German) is switched from the panel's flyout
 menu (the hamburger icon on the tab): pick **Deutsch** or **English**, a
 checkmark shows the active one.
 
+## Recommended settings: 16-bit, Adobe RGB or sRGB
+
+For best results, hand images to Photoshop in **16-bit** and in **Adobe
+RGB (1998)** or **sRGB** (example below: Adobe RGB):
+
+- **Camera Raw:** click the workflow line at the bottom centre → color
+  space "Adobe RGB (1998)", color depth "16 Bits/Channel".
+- **Lightroom Classic:** Preferences → External Editing → color space
+  "AdobeRGB (1998)", bit depth "16 bits/component" (the default there
+  is ProPhoto RGB).
+
+**Why 16-bit:** Umbra strongly amplifies exactly the faint color
+differences — often by several times for faint pigments. In 8-bit, fine
+tonal steps turn into coarse jumps (banding in pigment areas). 16-bit
+has about 128 times finer steps, so transitions stay smooth even after
+strong amplification. Downside: twice the file size. Saving as JPEG
+converts to 8-bit anyway — but by then the stretch has already been
+computed at full precision.
+
+**Why Adobe RGB or sRGB:** Method B (LRE) uses the formulas for exactly
+these two color spaces. The "Adobe RGB instead of sRGB" checkbox must
+match the image: on for Adobe RGB (default), off for sRGB. A ProPhoto RGB
+image (the Lightroom default) still works, but LRE treats it as if it
+were Adobe RGB, so the result looks different from the same image in
+Adobe RGB. The in-camera color space setting doesn't matter for RAW
+files; it only applies to JPEGs.
+
 ## Two methods
 
 **Method A — Lab a/b**
@@ -158,7 +185,8 @@ Photoshop's own color management handles the Lab conversion there.
 Images from Lightroom's "Edit in Photoshop" typically arrive as
 **16-bit** files; manually opened images are often 8-bit. The plugin
 detects this automatically from the pixel data type Photoshop returns
-and adjusts its math accordingly — no action needed from you.
+and adjusts its math accordingly. 16-bit is recommended for quality
+(see "Recommended settings" above).
 
 ## Known limitations
 
