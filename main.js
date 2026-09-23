@@ -63,7 +63,7 @@ const MANUAL_URL_EN = "https://github.com/sk-r1/umbra/blob/main/README.en.md";
 // refreshVersionMenuLabel()). MUSS bei einem Versionssprung von Hand mit
 // manifest.json "version" synchron gehalten werden, falls der
 // Automatismus aus irgendeinem Grund nicht greift.
-const FALLBACK_VERSION = "1.2.1";
+const FALLBACK_VERSION = "1.2.2";
 let pluginVersion = FALLBACK_VERSION;
 
 // Diagnose-Ausgaben (min/max der Rohkanäle) in die DevTools-Konsole.

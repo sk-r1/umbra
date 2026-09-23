@@ -904,7 +904,7 @@ im Creative-Cloud-Installer). `host` ist jetzt ein Objekt statt einer Liste,
 und das nicht dokumentierte Icon-Theme `"all"` entfällt. Das Paket wird
 ohne Ordner-Einträge im ZIP gebaut. Am Plugin-Verhalten ändert sich nichts.
 
-## Code-Review-Korrekturen (23.09.2026)
+## Code-Review-Korrekturen, Version 1.2.2 (23.09.2026)
 
 - **16 Bit, Methode B:** Die Rückumrechnung nach RGB rundete schon auf
   ganze 0..255-Werte. Ein 16-Bit-Dokument bekam dadurch nur 256 Tonwerte
