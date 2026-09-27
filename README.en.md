@@ -82,7 +82,7 @@ were Adobe RGB, so the result looks different from the same image in
 Adobe RGB. The in-camera color space setting doesn't matter for RAW
 files; it only applies to JPEGs.
 
-## Two methods
+## Three methods
 
 **Method A — Lab a/b**
 Duplicates the layer → converts the document to Lab mode → stretches
@@ -117,6 +117,23 @@ Recommended Sigma for Method B: keep it fairly low (roughly 15–30;
 the default is 15). At Sigma 60 many pixels tend to clip out of
 range.
 
+**Method C — Red pigments**
+Duplicates the layer → document stays in RGB → three **fixed** color
+directions (roughly: brightness, green vs. red/blue, blue vs. red) are
+each stretched to equal spread → output **directly** as red, green and
+blue, without transforming back to natural colors. Red pigments stand
+out strongly, black and white are suppressed; the colors are deliberately
+false. The original mean color is always kept; "Preserve original mean",
+saturation and grayscale have no effect here. Sigma is relative to the
+image's own contrast: 15 corresponds to the contrast measured in the
+reference examples (spread per channel = 1.4 × the original's mean
+spread); higher is stronger.
+
+Unlike Method B's starting values, the directions and contrast here are
+**measured**: determined from published before/after pairs with
+documented settings (two subjects) and checked against a third,
+independent image.
+
 ## Additional controls
 
 - **Saturation (after stretch)** — slider, 0.1–2.0, default 1.0. Scales
@@ -127,7 +144,7 @@ range.
   stretched RGB result to pure brightness (standard luminance
   weighting), so the contrast the stretch found shows up as brightness
   differences instead of color.
-- **Color balance before stretch (CB)** — checkbox, both methods. A
+- **Color balance before stretch (CB)** — checkbox, all methods. A
   gray-world correction applied to R/G/B *before* the stretch is
   computed, to reduce interference from a colored background (e.g.
   reddish rock) skewing the result.
@@ -166,7 +183,8 @@ The duplicated layer's name records what was used to produce it, e.g.:
     Background – LRE (CB, Sat1.0, Si15)
     Background – Lab a/b (Sat1.0, Si15)   ← Method A
 
-Method A layers are named `Lab a/b`, Method B layers `YRE` or `LRE`.
+Method A layers are named `Lab a/b`, Method B layers `YRE` or `LRE`,
+Method C layers `Red` (or `Rot` with the German UI).
 `CB` appears only if color balance was on; `SatX.X` and `SiXX` (Sigma)
 are always included; `Gray` appears only for Method B with grayscale
 on.

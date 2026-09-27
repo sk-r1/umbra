@@ -17,7 +17,7 @@
 
 // Umbra — Decorrelation Stretch Plugin für Adobe Photoshop (UXP)
 //
-// Zwei Methoden:
+// Drei Methoden:
 //
 // A) "Lab a/b"
 //    Ebene duplizieren -> Dokument nach Lab konvertieren -> 2x2-Stretch
@@ -30,6 +30,10 @@
 //    je Kanal: Die Streuung von Kanal i im Ergebnis ist Sigma × m_i
 //    (Details bei applyStretchToLayerRe). Die Startwerte sind Schätzwerte
 //    und im UI frei editierbar.
+//
+// C) "Rote Pigmente"
+//    Drei feste, gemessene Farbrichtungen je auf gleiche Streuung strecken
+//    und direkt als R/G/B ausgeben (Details bei applyRedToLayer).
 
 const photoshop = require("photoshop");
 const { app, core, imaging, action } = photoshop;
@@ -56,7 +60,7 @@ const MANUAL_URL_EN = "https://github.com/sk-r1/umbra/blob/main/README.en.md";
 // refreshVersionMenuLabel()). MUSS bei einem Versionssprung von Hand mit
 // manifest.json "version" synchron gehalten werden, falls der
 // Automatismus aus irgendeinem Grund nicht greift.
-const FALLBACK_VERSION = "1.3.0";
+const FALLBACK_VERSION = "1.4.0";
 let pluginVersion = FALLBACK_VERSION;
 
 // Diagnose-Ausgaben (min/max der Rohkanäle) in die DevTools-Konsole.
@@ -110,6 +114,11 @@ const I18N = {
     resetMults: "Reset multipliers",
     applyYreBtn: "Apply YRE (YUV)",
     applyLreBtn: "Apply LRE (Lab)",
+    methodCTitle: "Method C — Red pigments",
+    applyRedBtn: "Apply red enhancement",
+    methodCHint:
+      "Document stays in RGB. Three fixed color directions (roughly: brightness, green vs. red/blue, blue vs. red) are each stretched to equal spread and output directly as red, green and blue — no transform back to natural colors. Red pigments stand out strongly; black and white are suppressed. The original mean color is always kept (the \"Preserve original mean\" checkbox has no effect here), saturation and grayscale are not used.<br /><br />Sigma is relative to the image's own contrast: 15 corresponds to the contrast measured in published reference examples; higher is stronger.",
+    statusComputingRed: (sigma) => `Computing red enhancement (Sigma ${sigma})...`,
     methodBHint:
       "Document stays in RGB. Full 3&times;3 transform in the modified YUV or Lab color space, with red emphasis.<br /><br />The multipliers are the gain per channel relative to Sigma (higher = stronger), allowed range 0.1&ndash;10.<br /><br />Keep Sigma fairly low here (roughly 15&ndash;30). At Sigma 60, many pixels fall outside the value range and get clipped.<br /><br />The ⬆/⬇ buttons next to the multiplier fields save or load a preset (multipliers, Sigma, color profile) as a file.",
     currentlyUsed: "Currently used:",
@@ -174,6 +183,11 @@ const I18N = {
     resetMults: "Multiplikatoren zurücksetzen",
     applyYreBtn: "YRE anwenden (YUV)",
     applyLreBtn: "LRE anwenden (Lab)",
+    methodCTitle: "Methode C — Rote Pigmente",
+    applyRedBtn: "Rot-Verstärkung anwenden",
+    methodCHint:
+      "Dokument bleibt in RGB. Drei feste Farbrichtungen (grob: Helligkeit, Grün gegen Rot/Blau, Blau gegen Rot) werden je auf gleiche Streuung gestreckt und direkt als Rot, Grün und Blau ausgegeben — ohne Rückrechnung in natürliche Farben. Rote Pigmente treten stark hervor, Schwarz und Weiß werden unterdrückt. Der mittlere Farbton des Originals bleibt immer erhalten (\"Original-Mittelwert beibehalten\" wirkt hier nicht), Sättigung und Graustufen werden nicht verwendet.<br /><br />Sigma ist relativ zum Kontrast des Bildes: 15 entspricht dem in veröffentlichten Referenzbeispielen gemessenen Kontrast; höher ist stärker.",
+    statusComputingRed: (sigma) => `Berechne Rot-Verstärkung (Sigma ${sigma})...`,
     methodBHint:
       "Dokument bleibt in RGB. Volle 3&times;3-Transformation im modifizierten YUV- bzw. Lab-Farbraum, mit Rot-Betonung.<br /><br />Die Multiplikatoren sind die Verstärkung je Kanal relativ zu Sigma (größer = stärker), erlaubt sind 0,1&ndash;10.<br /><br />Sigma hier eher niedrig lassen (ca. 15&ndash;30). Bei Sigma 60 laufen viele Pixel aus dem Wertebereich und werden abgeschnitten.<br /><br />Die ⬆/⬇-Schaltflächen neben den Multiplikator-Feldern speichern bzw. laden ein Preset (Multiplikatoren, Sigma, Farbprofil) als Datei.",
     currentlyUsed: "Aktuell verwendet:",
@@ -313,7 +327,10 @@ function applyStaticTranslations() {
   setText("resetMultBtn", "resetMults");
   setText("applyYreBtn", "applyYreBtn");
   setText("applyLreBtn", "applyLreBtn");
+  setText("methodCTitle", "methodCTitle");
+  setText("applyRedBtn", "applyRedBtn");
   setHtml("methodBHint", "methodBHint");
+  setHtml("methodCHint", "methodCHint");
 
   const sigmaWarningEl = $("sigmaWarning");
   if (sigmaWarningEl && sigmaWarningEl.classList.contains("visible")) {
@@ -839,6 +856,7 @@ async function initUI() {
   [
     ["methodAHelpBtn", "methodAHint"],
     ["methodBHelpBtn", "methodBHint"],
+    ["methodCHelpBtn", "methodCHint"],
     ["featherHelpBtn", "featherHint"],
   ].forEach(([btnId, hintId]) => {
     const btn = $(btnId);
@@ -989,6 +1007,18 @@ async function initUI() {
         getFeatherRadius()
       ),
     "Decorrelation Stretch (LRE)"
+  );
+
+  wireButton(
+    "applyRedBtn",
+    () =>
+      runRedWorkflow(
+        getSigma(),
+        reportStatus,
+        getColorBalance(),
+        getFeatherRadius()
+      ),
+    "Red enhancement (Method C)"
   );
 
   reportStatus("statusReady");
@@ -1193,11 +1223,12 @@ initUI().catch((err) => {
  * Baut einen Ebenennamen-Suffix, der die aktiven Optionen zusammenfasst,
  * z. B. "LRE (CB, Sat1.0, Si15)" — hilft, die Ebene später
  * wiederzuerkennen, ohne im Statusfeld nachschauen zu müssen.
+ * saturation === null lässt "SatX.X" weg (Methode C nutzt keine Sättigung).
  */
 function buildLayerSuffix(baseLabel, sigma, saturation, colorBalance, grayscale) {
   const opts = [];
   if (colorBalance) opts.push("CB");
-  opts.push(`Sat${Number(saturation).toFixed(1)}`);
+  if (saturation !== null) opts.push(`Sat${Number(saturation).toFixed(1)}`);
   opts.push(`Si${Math.round(sigma)}`);
   if (grayscale) opts.push("Gray");
   return opts.length ? `${baseLabel} (${opts.join(", ")})` : baseLabel;
@@ -2015,6 +2046,132 @@ async function applyStretchToLayerRe(
     outData[o] = clampTo(Math.round(outR * fromEightBit), maxValue);
     outData[o + 1] = clampTo(Math.round(outG * fromEightBit), maxValue);
     outData[o + 2] = clampTo(Math.round(outB * fromEightBit), maxValue);
+    if (hasAlpha) outData[o + 3] = raw[o + 3];
+  }
+
+  await writeBack(doc, layer, imageData, outData, width, height, components, pixelData.sourceBounds);
+}
+
+// ---------------------------------------------------------------------
+// Methode C: Rote Pigmente (feste Farbrichtungen)
+//
+// Anders als A und B werden die Achsen NICHT aus dem Bild berechnet: Drei
+// feste Farbrichtungen auf den gammakodierten RGB-Werten werden je auf
+// gleiche Streuung gestreckt und DIREKT als R, G, B ausgegeben (keine
+// Rückrechnung in natürliche Farben). Der mittlere Farbton bleibt erhalten.
+//
+// Die Richtungen und der Kontrastfaktor sind GEMESSEN, nicht geschätzt
+// (27.09.2026): an veröffentlichten Vorher/Nachher-Paaren mit bekannter
+// Einstellung (zwei Motive) bestimmt und an einem dritten, unabhängigen
+// Bild geprüft — dort erklärte das Modell das Referenzergebnis pro Kanal
+// zu 91–98 % (R², auf 4-px-Blöcken), obwohl nur Kontrast und Mittelwert
+// angepasst wurden. Details im README.
+// ---------------------------------------------------------------------
+
+const RED_DIRECTIONS = [
+  [0.511, 0.831, 0.219], // grob Helligkeit           -> Rot
+  [-0.403, 0.817, -0.412], // Grün gegen Rot/Blau     -> Grün
+  [-0.669, 0.097, 0.737], // Blau gegen Rot           -> Blau
+];
+
+// Sigma 15 entspricht dem gemessenen Kontrast: Ziel-Streuung je
+// Ausgabekanal = 1,4 × mittlere Streuung der RGB-Kanäle des Originals.
+// Relativ statt absolut, weil die Referenzergebnisse je nach Bild sehr
+// verschieden stark gestreckt waren, im Verhältnis zum Bildkontrast aber
+// gleich (1,40 bzw. 1,35).
+const RED_CONTRAST_AT_15 = 1.4;
+
+async function runRedWorkflow(targetSigma, report, colorBalance, featherRadius) {
+  const doc = app.activeDocument;
+  if (!doc) throw new Error(t("errNoDocument"));
+  // Rechnet auf R/G/B-Werten -> RGB-Dokument nötig (wie Methode B).
+  assertSupportedDocument(doc, false);
+
+  const layerSuffix = buildLayerSuffix(
+    currentLang === "de" ? "Rot" : "Red",
+    targetSigma,
+    null,
+    colorBalance,
+    false
+  );
+  const dupLayer = await duplicateBaseLayer(doc, layerSuffix, report);
+
+  const useSelection = await hasActiveSelection(doc);
+  let weights = null;
+  if (useSelection) {
+    report && report("statusSelectionWeights");
+    weights = await buildSelectionWeights(doc, featherRadius);
+  }
+
+  if (colorBalance) {
+    report && report("statusColorBalance");
+    await applyGrayWorldBalance(doc, dupLayer);
+  }
+
+  report && report("statusComputingRed", Math.round(targetSigma));
+  await applyRedToLayer(doc, dupLayer, targetSigma, weights);
+
+  if (useSelection) {
+    report && report("statusApplyingMask");
+    await applySelectionAsMask(doc, dupLayer);
+  }
+}
+
+async function applyRedToLayer(doc, layer, targetSigma, weights) {
+  const pixelData = await imaging.getPixels({
+    documentID: doc.id,
+    layerID: layer.id,
+  });
+  const { imageData } = pixelData;
+  const { width, height, components } = imageData;
+  const raw = await imageData.getData({ chunky: true });
+  const hasAlpha = components >= 4;
+  const pixelCount = width * height;
+
+  // Wie Methode B auf der 0..255-Skala rechnen (die Richtungen wurden an
+  // 8-Bit-Werten gemessen), gerundet wird erst beim Zurückschreiben.
+  const maxValue = getMaxValue(raw);
+  const toEightBit = maxValue === 255 ? 1 : 255 / maxValue;
+  const fromEightBit = maxValue === 255 ? 1 : maxValue / 255;
+
+  const R = new Float32Array(pixelCount);
+  const G = new Float32Array(pixelCount);
+  const B = new Float32Array(pixelCount);
+  for (let i = 0; i < pixelCount; i++) {
+    const o = i * components;
+    R[i] = raw[o] * toEightBit;
+    G[i] = raw[o + 1] * toEightBit;
+    B[i] = raw[o + 2] * toEightBit;
+  }
+
+  const { mean, sumW } = weightedMean([R, G, B], weights, pixelCount);
+  const cov = weightedCovariance([R, G, B], mean, weights, pixelCount, sumW);
+
+  const meanSpread =
+    (Math.sqrt(cov[0][0]) + Math.sqrt(cov[1][1]) + Math.sqrt(cov[2][2])) / 3;
+  const target = RED_CONTRAST_AT_15 * meanSpread * (targetSigma / 15);
+
+  // Verstärkung je Richtung: Streuung der Komponente d·x ist sqrt(dᵀ·cov·d).
+  const gain = RED_DIRECTIONS.map((d) => {
+    let v = 0;
+    for (let a = 0; a < 3; a++) {
+      for (let b = 0; b < 3; b++) v += d[a] * cov[a][b] * d[b];
+    }
+    const spread = Math.sqrt(Math.max(v, 0));
+    return spread > 1e-6 ? target / spread : 0;
+  });
+
+  const outData = new raw.constructor(raw.length);
+  for (let i = 0; i < pixelCount; i++) {
+    const dr = R[i] - mean[0];
+    const dg = G[i] - mean[1];
+    const db = B[i] - mean[2];
+    const o = i * components;
+    for (let k = 0; k < 3; k++) {
+      const d = RED_DIRECTIONS[k];
+      const v = mean[k] + gain[k] * (d[0] * dr + d[1] * dg + d[2] * db);
+      outData[o + k] = clampTo(Math.round(clamp255(v) * fromEightBit), maxValue);
+    }
     if (hasAlpha) outData[o + 3] = raw[o + 3];
   }
 

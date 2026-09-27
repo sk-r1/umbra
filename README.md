@@ -76,7 +76,7 @@ aber so gerechnet, als wäre es Adobe RGB — das Ergebnis sieht dann anders
 aus als beim selben Bild in Adobe RGB. Die Farbraum-Einstellung in der
 Kamera spielt bei RAW-Dateien keine Rolle; sie gilt nur für JPEGs.
 
-## Zwei Methoden
+## Drei Methoden
 
 **Methode A — Lab a/b (bisheriges Verhalten)**
 Ebene duplizieren → Dokument nach Lab konvertieren → 2×2-Stretch nur auf
@@ -99,6 +99,23 @@ gedämpft. Sie sind Schätzwerte und im Panel frei editierbar.
 seit 1.2.0: 15). Ein Test mit synthetischen, stark
 korrelierten Farbdaten ergab bei Sigma 60 rund 21 % abgeschnittene Pixel,
 bei Sigma 20 keine.
+
+**Methode C — Rote Pigmente**
+Ebene duplizieren → Dokument bleibt in RGB → drei **feste** Farbrichtungen
+(grob: Helligkeit, Grün gegen Rot/Blau, Blau gegen Rot) je auf gleiche
+Streuung strecken → **direkt** als Rot, Grün und Blau ausgeben, ohne
+Rückrechnung in natürliche Farben. Rote Pigmente treten stark hervor,
+Schwarz und Weiß werden unterdrückt, die Farben sind bewusst „falsch".
+Der mittlere Farbton des Originals bleibt immer erhalten; „Original-
+Mittelwert beibehalten", Sättigung und Graustufen wirken hier nicht.
+Sigma ist relativ zum Kontrast des Bildes: 15 entspricht dem gemessenen
+Kontrast der Referenzbeispiele (Streuung je Kanal = 1,4 × mittlere
+Streuung des Originals), höher ist stärker.
+
+Anders als die Startwerte von Methode B sind Richtungen und Kontrast hier
+**gemessen**: an veröffentlichten Vorher/Nachher-Paaren mit dokumentierter
+Einstellung (zwei Motive) bestimmt und an einem dritten, unabhängigen Bild
+überprüft (siehe Änderungsprotokoll 1.4.0).
 
 ## Workflow
 
@@ -960,6 +977,38 @@ gespeicherte Presets sind nicht betroffen.
 
 Außerdem: Vergleichs- und Quellenhinweise aus Panel-Hilfetext, Code-Kommentaren und
 README entfernt (nur noch eine kurze Referenz am Anfang).
+
+## Methode C — Rote Pigmente, Version 1.4.0 (27.09.2026)
+
+**Neu:** Methode C (siehe „Drei Methoden" oben). Grundlage ist eine
+Messung statt einer Schätzung:
+
+1. **Referenzen:** veröffentlichte Vorher/Nachher-Paare derselben Motive
+   mit dokumentierter Einstellung (zwei Motive, je Original und Ergebnis
+   im gleichen Ausschnitt).
+2. **Befund:** Die Farbabbildung ist bei beiden Motiven dieselbe (Richtung
+   jedes Ausgabekanals stimmt mit Kosinus 0,991–0,999 überein) — also feste
+   Farbrichtungen, nicht aus dem Bild berechnet. Jede Komponente wird auf
+   gleiche Streuung gebracht und direkt ausgegeben; der mittlere Farbton
+   bleibt erhalten.
+3. **Unabhängige Prüfung:** Mit den nur aus diesen zwei Motiven gemessenen
+   Richtungen wurde ein drittes, fremdes Beispiel vorhergesagt; angepasst
+   wurden nur Kontrast und Mittelwert. Übereinstimmung je Kanal R²
+   0,976 / 0,909 / 0,955 (auf 4-px-Blöcken, JPEG-Rauschen gemittelt).
+4. **Plugin-Code geprüft:** Der JavaScript-Code (Sigma 15, ohne jede
+   Anpassung an das Bild) liefert auf dem dritten Beispiel sichtbar
+   dasselbe Bild; Rot R² 0,95, Blau 0,84. Grün weicht im Mittelwert ab,
+   weil das fremde Beispiel dort nachträglich um rund 22 Stufen
+   aufgehellt war (in den dokumentierten Referenzen bleibt der Mittelwert
+   erhalten). Eine Auto-Kontrast-Spreizung erklärt diese Abweichung nicht
+   (getestet, je Kanal und gemeinsam). 8 Bit und 16 Bit liefern dasselbe
+   Ergebnis (mittlere Abweichung 0,23 Stufen).
+
+**Grenzen:** Die Referenzbilder sind klein und JPEG-komprimiert; der
+Kontrastfaktor 1,4 stützt sich auf zwei Bilder (ein drittes Original war
+als kontrastverstärkt beschriftet und daher nicht vergleichbar).
+
+**Version:** 1.3.0 → **1.4.0**.
 
 ## Bekannte offene Punkte / nächste Schritte mit Claude Code
 
