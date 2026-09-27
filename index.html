@@ -163,12 +163,16 @@
       pointer-events: none;
     }
     .mult-display {
+      display: none;
       margin: 6px 0 0 0;
       padding: 5px 6px;
       background-color: var(--uxp-host-widget-hover-background-color, rgba(128,128,128,0.15));
       border-radius: 4px;
       line-height: 1.5;
       font-family: monospace;
+    }
+    .mult-display.visible {
+      display: block;
     }
     .mult-display .bad {
       color: var(--uxp-host-error-color, #ff9a8a);
@@ -257,8 +261,14 @@
 
   <sp-divider size="small"></sp-divider>
 
+  <!-- Jede Methode ist ein geschlossener Block: Überschrift, eigene
+       Optionen, Anwenden-Knopf. Reihenfolge: die beiden Methoden mit nur
+       einem Knopf zuerst (ohne Scrollen sichtbar), YRE/LRE mit den
+       Multiplikatoren zuletzt. Die IDs (methodA/B/C…) bleiben aus
+       Kompatibilität die alten, nur die sichtbaren Namen haben keine
+       Buchstaben mehr. -->
   <div class="section-header">
-    <sp-heading size="XXS" id="methodATitle">Method A — Lab a/b</sp-heading>
+    <sp-heading size="XXS" id="methodATitle">Lab a/b</sp-heading>
     <sp-action-button id="methodAHelpBtn" class="help-btn" quiet title="Info">?</sp-action-button>
   </div>
   <sp-checkbox id="keepLab" size="s">Keep result in Lab mode (for channel editing)</sp-checkbox>
@@ -271,22 +281,24 @@
   <sp-divider size="small"></sp-divider>
 
   <div class="section-header">
-    <sp-heading size="XXS" id="methodBTitle">Method B — YRE / LRE</sp-heading>
+    <sp-heading size="XXS" id="methodCTitle">Red pigments</sp-heading>
+    <sp-action-button id="methodCHelpBtn" class="help-btn" quiet title="Info">?</sp-action-button>
+  </div>
+  <sp-button id="applyRedBtn" class="apply-btn-3d" variant="cta">Apply red enhancement</sp-button>
+  <sp-body class="hint collapsible" id="methodCHint" size="XS">
+    Fixed color directions for red pigments, output directly as RGB.
+  </sp-body>
+
+  <sp-divider size="small"></sp-divider>
+
+  <div class="section-header">
+    <sp-heading size="XXS" id="methodBTitle">YRE / LRE</sp-heading>
     <sp-action-button id="methodBHelpBtn" class="help-btn" quiet title="Info">?</sp-action-button>
   </div>
 
   <sp-checkbox id="adobeRgb" size="s" checked>Adobe RGB (1998) instead of sRGB — LRE only</sp-checkbox>
 
   <sp-checkbox id="grayscale" size="s">Grayscale (convert enhancement to brightness only)</sp-checkbox>
-
-  <sp-button id="applyYreBtn" class="apply-btn-3d" variant="cta">Apply YRE (YUV)</sp-button>
-  <sp-button id="applyLreBtn" class="apply-btn-3d" variant="cta">Apply LRE (Lab)</sp-button>
-  <sp-body class="hint collapsible" id="methodBHint" size="XS">
-    Document stays in RGB. Full 3&times;3 transform in the modified
-    YUV or Lab color space, with red emphasis.
-  </sp-body>
-
-  <sp-divider size="small"></sp-divider>
 
   <sp-body class="value-label" size="XS" id="yreMultLabel">Channel multipliers YRE (Y / U / V)</sp-body>
   <div class="mult-row">
@@ -305,8 +317,9 @@
     </div>
   </div>
   <sp-body class="hint" size="XS">
-    <span id="yrePresetLabelText">Loaded preset:</span> <span id="yreLoadedPresetName">-</span>
+    <span id="yrePresetLabelText">Preset:</span> <span id="yreLoadedPresetName">-</span>
   </sp-body>
+  <sp-button id="applyYreBtn" class="apply-btn-3d" variant="cta">Apply YRE (YUV)</sp-button>
 
   <sp-body class="value-label" size="XS" id="lreMultLabel">Channel multipliers LRE (L / a / b)</sp-body>
   <div class="mult-row">
@@ -325,21 +338,17 @@
     </div>
   </div>
   <sp-body class="hint" size="XS">
-    <span id="lrePresetLabelText">Loaded preset:</span> <span id="lreLoadedPresetName">-</span>
+    <span id="lrePresetLabelText">Preset:</span> <span id="lreLoadedPresetName">-</span>
   </sp-body>
+  <sp-button id="applyLreBtn" class="apply-btn-3d" variant="cta">Apply LRE (Lab)</sp-button>
 
+  <!-- Nur sichtbar, wenn ein Multiplikator-Feld ungültig ist (früher ein
+       dauerhafter "Aktuell verwendet"-Kasten mit 4–5 Zeilen). -->
   <sp-body id="multDisplay" class="mult-display" size="XS"></sp-body>
   <sp-button id="resetMultBtn" variant="secondary">Reset multipliers</sp-button>
-
-  <sp-divider size="small"></sp-divider>
-
-  <div class="section-header">
-    <sp-heading size="XXS" id="methodCTitle">Method C — Red pigments</sp-heading>
-    <sp-action-button id="methodCHelpBtn" class="help-btn" quiet title="Info">?</sp-action-button>
-  </div>
-  <sp-button id="applyRedBtn" class="apply-btn-3d" variant="cta">Apply red enhancement</sp-button>
-  <sp-body class="hint collapsible" id="methodCHint" size="XS">
-    Fixed color directions for red pigments, output directly as RGB.
+  <sp-body class="hint collapsible" id="methodBHint" size="XS">
+    Document stays in RGB. Full 3&times;3 transform in the modified
+    YUV or Lab color space, with red emphasis.
   </sp-body>
 
   <sp-divider size="small"></sp-divider>

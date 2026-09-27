@@ -74,7 +74,7 @@ strong amplification. Downside: twice the file size. Saving as JPEG
 converts to 8-bit anyway — but by then the stretch has already been
 computed at full precision.
 
-**Why Adobe RGB or sRGB:** Method B (LRE) uses the formulas for exactly
+**Why Adobe RGB or sRGB:** LRE uses the formulas for exactly
 these two color spaces. The "Adobe RGB instead of sRGB" checkbox must
 match the image: on for Adobe RGB (default), off for sRGB. A ProPhoto RGB
 image (the Lightroom default) still works, but LRE treats it as if it
@@ -84,22 +84,25 @@ files; it only applies to JPEGs.
 
 ## Three methods
 
-**Method A — Lab a/b**
+They appear in the panel in this order, each as its own block with its
+options and apply button.
+
+**Lab a/b**
 Duplicates the layer → converts the document to Lab mode → stretches
 only the a\*/b\* (color) channels in a 2×2 transform → converts the
 document back to RGB. Lightness (L\*) is left completely untouched. The
 Lab conversion is just an internal step; by default the document is
-returned to RGB so Method B, exporting, and blending layers keep working
+returned to RGB so the other methods, exporting, and blending layers keep working
 (color mode is a document-wide property, not per-layer).
 
 There is an opt-out: the **"Keep result in Lab mode"** checkbox leaves
 the document in Lab so you can edit the individual a\*/b\*/L channels
 directly (e.g. copy the a\* channel into its own document and work on it
 with any tool). With it ticked, you must convert back to RGB yourself
-before running Method B — if you forget, Method B stops with a clear
+before running YRE/LRE or Red pigments — if you forget, they stop with a clear
 message rather than producing garbage.
 
-**Method B — YRE / LRE**
+**YRE / LRE**
 Duplicates the layer → document stays in RGB → internally converts each
 pixel to YUV (YRE) or Lab (LRE) → full 3×3 decorrelation stretch
 (Karhunen–Loève) → converts back to RGB.
@@ -113,11 +116,11 @@ the other color axis is damped. They are estimates and freely editable.
 Note: presets saved before version 1.3.0 now act inversely (multipliers
 used to weaken their channel).
 
-Recommended Sigma for Method B: keep it fairly low (roughly 15–30;
+Recommended Sigma for YRE/LRE: keep it fairly low (roughly 15–30;
 the default is 15). At Sigma 60 many pixels tend to clip out of
 range.
 
-**Method C — Red pigments**
+**Red pigments**
 Duplicates the layer → document stays in RGB → three **fixed** color
 directions (roughly: brightness, green vs. red/blue, blue vs. red) are
 each stretched to equal spread → output **directly** as red, green and
@@ -129,7 +132,7 @@ image's own contrast: 15 corresponds to the contrast measured in the
 reference examples (spread per channel = 1.4 × the original's mean
 spread); higher is stronger.
 
-Unlike Method B's starting values, the directions and contrast here are
+Unlike the YRE/LRE starting values, the directions and contrast here are
 **measured**: determined from published before/after pairs with
 documented settings (two subjects) and checked against a third,
 independent image.
@@ -140,7 +143,7 @@ independent image.
   only the color intensity of the result (not the chosen color center,
   not brightness). Lower values tame the sometimes very vivid colors a
   strong stretch can produce.
-- **Grayscale** — checkbox, Method B only. Converts the finished,
+- **Grayscale** — checkbox, YRE/LRE only. Converts the finished,
   stretched RGB result to pure brightness (standard luminance
   weighting), so the contrast the stretch found shows up as brightness
   differences instead of color.
@@ -160,7 +163,7 @@ one), **Reload Plugin** (reloads the panel — handy after an update
 without going through the UXP Developer Tool), **User Manual** (opens
 the matching README on GitHub, German or English depending on the
 panel's current language), **GitHub Repository**, **Convert document to
-RGB** (a one-click way back to RGB — useful after Method A's "Keep
+RGB** (a one-click way back to RGB — useful after Lab a/b's "Keep
 result in Lab mode"), and a greyed-out **Version x.x.x** line. The
 version number itself now lives only in `manifest.json` — the menu reads
 it at runtime instead of duplicating it. This is the project's first use of UXP's `entrypoints.setup()`
@@ -181,22 +184,22 @@ LRE presets are independent of each other.
 The duplicated layer's name records what was used to produce it, e.g.:
 
     Background – LRE (CB, Sat1.0, Si15)
-    Background – Lab a/b (Sat1.0, Si15)   ← Method A
+    Background – Lab a/b (Sat1.0, Si15)   ← Lab a/b
 
-Method A layers are named `Lab a/b`, Method B layers `YRE` or `LRE`,
-Method C layers `Red` (or `Rot` with the German UI).
+Lab a/b layers are named `Lab a/b`, YRE/LRE layers `YRE` or `LRE`,
+Red pigments layers `Red` (or `Rot` with the German UI).
 `CB` appears only if color balance was on; `SatX.X` and `SiXX` (Sigma)
-are always included; `Gray` appears only for Method B with grayscale
+are always included; `Gray` appears only for YRE/LRE with grayscale
 on.
 
-## Color profile (sRGB / Adobe RGB) — Method B (LRE) only
+## Color profile (sRGB / Adobe RGB) — LRE only
 
 LRE's Lab math needs to know the actual color primaries of your RGB
 data to be colorimetrically correct — a checkbox lets you pick sRGB or
 Adobe RGB (1998). Both share the same white point (D65), only the
 primaries and gamma curve differ, so this is a real, not cosmetic,
 difference. If your source is neither (e.g. ProPhoto RGB), results in
-LRE specifically may show a color cast; Method A is unaffected, since
+LRE specifically may show a color cast; Lab a/b is unaffected, since
 Photoshop's own color management handles the Lab conversion there.
 
 ## 8-bit / 16-bit

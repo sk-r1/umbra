@@ -60,7 +60,7 @@ const MANUAL_URL_EN = "https://github.com/sk-r1/umbra/blob/main/README.en.md";
 // refreshVersionMenuLabel()). MUSS bei einem Versionssprung von Hand mit
 // manifest.json "version" synchron gehalten werden, falls der
 // Automatismus aus irgendeinem Grund nicht greift.
-const FALLBACK_VERSION = "1.4.0";
+const FALLBACK_VERSION = "1.5.0";
 let pluginVersion = FALLBACK_VERSION;
 
 // Diagnose-Ausgaben (min/max der Rohkanäle) in die DevTools-Konsole.
@@ -92,12 +92,12 @@ const I18N = {
   en: {
     sigmaLabel: "Target contrast (Sigma):",
     preserveMean: "Preserve original mean",
-    methodATitle: "Method A — Lab a/b",
+    methodATitle: "Lab a/b",
     applyBtn: "Apply Lab a/b",
     keepLabText: "Keep result in Lab mode (for channel editing)",
     methodAHint:
-      "Converts the document to Lab mode and stretches only a* and b*. Lightness L* is preserved exactly. Normally the document is converted back to RGB afterwards; tick \"Keep result in Lab mode\" to leave it in Lab so you can edit the a*/b*/L channels directly — Method B then needs a manual convert back to RGB first.",
-    methodBTitle: "Method B — YRE / LRE",
+      "Converts the document to Lab mode and stretches only a* and b*. Lightness L* is preserved exactly. Normally the document is converted back to RGB afterwards; tick \"Keep result in Lab mode\" to leave it in Lab so you can edit the a*/b*/L channels directly — YRE/LRE and Red pigments then need a manual convert back to RGB first.",
+    methodBTitle: "YRE / LRE",
     // Bewusst gekürzt ("LRE only" statt "only relevant for LRE"): der lange
     // Text (gemessen ~297px) übersteigt die verfügbare Checkbox-Breite
     // (~277px bei 325px-Panel) und brach als einzige Beschriftung auf zwei
@@ -109,20 +109,18 @@ const I18N = {
     lreMultLabel: "Channel multipliers LRE (L / a / b)",
     savePreset: "Save preset…",
     loadPreset: "Load preset…",
-    loadedPreset: "Loaded preset:",
+    loadedPreset: "Preset:",
     none: "-",
     resetMults: "Reset multipliers",
     applyYreBtn: "Apply YRE (YUV)",
     applyLreBtn: "Apply LRE (Lab)",
-    methodCTitle: "Method C — Red pigments",
+    methodCTitle: "Red pigments",
     applyRedBtn: "Apply red enhancement",
     methodCHint:
       "Document stays in RGB. Three fixed color directions (roughly: brightness, green vs. red/blue, blue vs. red) are each stretched to equal spread and output directly as red, green and blue — no transform back to natural colors. Red pigments stand out strongly; black and white are suppressed. The original mean color is always kept (the \"Preserve original mean\" checkbox has no effect here), saturation and grayscale are not used.<br /><br />Sigma is relative to the image's own contrast: 15 corresponds to the contrast measured in published reference examples; higher is stronger.",
     statusComputingRed: (sigma) => `Computing red enhancement (Sigma ${sigma})...`,
     methodBHint:
       "Document stays in RGB. Full 3&times;3 transform in the modified YUV or Lab color space, with red emphasis.<br /><br />The multipliers are the gain per channel relative to Sigma (higher = stronger), allowed range 0.1&ndash;10.<br /><br />Keep Sigma fairly low here (roughly 15&ndash;30). At Sigma 60, many pixels fall outside the value range and get clipped.<br /><br />The ⬆/⬇ buttons next to the multiplier fields save or load a preset (multipliers, Sigma, color profile) as a file.",
-    currentlyUsed: "Currently used:",
-    profileLreOnly: "Profile (LRE only):",
     invalidNote: "* invalid (allowed 0.1–10) — using default value",
     statusComputing: "Computing...",
     statusDone: "Done.",
@@ -144,7 +142,7 @@ const I18N = {
     presetSaveErrorPrefix: "Error while saving: ",
     presetLoadErrorPrefix: "Error while loading: ",
     sigmaWarning:
-      "⚠ High Sigma values (>60) can push many pixels out of range and clip them, especially for Method B.",
+      "⚠ High Sigma values (>60) can push many pixels out of range and clip them, especially for YRE/LRE.",
     saturationLabel: "Saturation (after stretch):",
     colorBalanceText: "Color balance before stretch (CB)",
     grayscaleText: "Grayscale (convert enhancement to brightness only)",
@@ -167,31 +165,29 @@ const I18N = {
   de: {
     sigmaLabel: "Ziel-Kontrast (Sigma):",
     preserveMean: "Original-Mittelwert beibehalten",
-    methodATitle: "Methode A — Lab a/b",
+    methodATitle: "Lab a/b",
     applyBtn: "Lab a/b anwenden",
     keepLabText: "Ergebnis in Lab belassen (für Kanal-Bearbeitung)",
     methodAHint:
-      "Wandelt das Dokument in den Lab-Modus und streckt nur a* und b*. Die Helligkeit L* bleibt exakt erhalten. Normalerweise wird danach zurück nach RGB gewandelt; mit \"Ergebnis in Lab belassen\" bleibt es in Lab, sodass die a*/b*/L-Kanäle direkt bearbeitbar sind — Methode B braucht dann vorher eine manuelle Rückwandlung nach RGB.",
-    methodBTitle: "Methode B — YRE / LRE",
+      "Wandelt das Dokument in den Lab-Modus und streckt nur a* und b*. Die Helligkeit L* bleibt exakt erhalten. Normalerweise wird danach zurück nach RGB gewandelt; mit \"Ergebnis in Lab belassen\" bleibt es in Lab, sodass die a*/b*/L-Kanäle direkt bearbeitbar sind — YRE/LRE und Rote Pigmente brauchen dann vorher eine manuelle Rückwandlung nach RGB.",
+    methodBTitle: "YRE / LRE",
     adobeRgbText: "Adobe RGB (1998) statt sRGB — nur für LRE relevant",
     yreMultLabel: "Kanal-Multiplikatoren YRE (Y / U / V)",
     lreMultLabel: "Kanal-Multiplikatoren LRE (L / a / b)",
     savePreset: "Preset speichern…",
     loadPreset: "Preset laden…",
-    loadedPreset: "Geladenes Preset:",
+    loadedPreset: "Preset:",
     none: "-",
     resetMults: "Multiplikatoren zurücksetzen",
     applyYreBtn: "YRE anwenden (YUV)",
     applyLreBtn: "LRE anwenden (Lab)",
-    methodCTitle: "Methode C — Rote Pigmente",
+    methodCTitle: "Rote Pigmente",
     applyRedBtn: "Rot-Verstärkung anwenden",
     methodCHint:
       "Dokument bleibt in RGB. Drei feste Farbrichtungen (grob: Helligkeit, Grün gegen Rot/Blau, Blau gegen Rot) werden je auf gleiche Streuung gestreckt und direkt als Rot, Grün und Blau ausgegeben — ohne Rückrechnung in natürliche Farben. Rote Pigmente treten stark hervor, Schwarz und Weiß werden unterdrückt. Der mittlere Farbton des Originals bleibt immer erhalten (\"Original-Mittelwert beibehalten\" wirkt hier nicht), Sättigung und Graustufen werden nicht verwendet.<br /><br />Sigma ist relativ zum Kontrast des Bildes: 15 entspricht dem in veröffentlichten Referenzbeispielen gemessenen Kontrast; höher ist stärker.",
     statusComputingRed: (sigma) => `Berechne Rot-Verstärkung (Sigma ${sigma})...`,
     methodBHint:
       "Dokument bleibt in RGB. Volle 3&times;3-Transformation im modifizierten YUV- bzw. Lab-Farbraum, mit Rot-Betonung.<br /><br />Die Multiplikatoren sind die Verstärkung je Kanal relativ zu Sigma (größer = stärker), erlaubt sind 0,1&ndash;10.<br /><br />Sigma hier eher niedrig lassen (ca. 15&ndash;30). Bei Sigma 60 laufen viele Pixel aus dem Wertebereich und werden abgeschnitten.<br /><br />Die ⬆/⬇-Schaltflächen neben den Multiplikator-Feldern speichern bzw. laden ein Preset (Multiplikatoren, Sigma, Farbprofil) als Datei.",
-    currentlyUsed: "Aktuell verwendet:",
-    profileLreOnly: "Profil (nur LRE):",
     invalidNote: "* ungültig (erlaubt 0,1–10) — Standardwert wird benutzt",
     statusComputing: "Berechne...",
     statusDone: "Fertig.",
@@ -213,7 +209,7 @@ const I18N = {
     presetSaveErrorPrefix: "Fehler beim Speichern: ",
     presetLoadErrorPrefix: "Fehler beim Laden: ",
     sigmaWarning:
-      "⚠ Hohe Sigma-Werte (>60) treiben viele Pixel aus dem Wertebereich und schneiden sie ab, besonders bei Methode B.",
+      "⚠ Hohe Sigma-Werte (>60) treiben viele Pixel aus dem Wertebereich und schneiden sie ab, besonders bei YRE/LRE.",
     saturationLabel: "Sättigung (nach Stretch):",
     colorBalanceText: "Farbausgleich vor Stretch (CB)",
     grayscaleText: "Graustufen (Anreicherung als reine Helligkeit)",
@@ -617,29 +613,28 @@ function formatMults(space) {
 }
 
 /**
- * Aktualisiert die Anzeige der aktuell für die Berechnung verwendeten
- * Werte — also genau das, was readMults() liefert, inklusive der
- * Ersatzwerte bei ungültiger Eingabe.
+ * Zeigt nur dann einen Hinweis, wenn ein Multiplikator-Feld ungültig ist:
+ * die betroffene Zeile mit den tatsächlich verwendeten Werten (ungültige
+ * mit * markiert, durch den Startwert ersetzt) plus Erklärung. Sonst ist
+ * die Anzeige ausgeblendet — früher stand hier dauerhaft ein 4–5-zeiliger
+ * "Aktuell verwendet"-Kasten, der nur die Feldwerte wiederholte.
  */
 function updateMultDisplay() {
   const el = $("multDisplay");
   if (!el) return;
 
-  const yre = formatMults("YRE");
-  const lre = formatMults("LRE");
-  const profileLabel = getProfileName() === "AdobeRGB" ? "Adobe RGB (1998)" : "sRGB";
-
-  let html =
-    `${t("currentlyUsed")}<br />YRE: ` +
-    yre.text +
-    "<br />LRE: " +
-    lre.text +
-    `<br />${t("profileLreOnly")} ` +
-    profileLabel;
-  if (yre.hasInvalid || lre.hasInvalid) {
-    html += `<br /><span class="bad">${t("invalidNote")}</span>`;
+  const lines = [];
+  ["YRE", "LRE"].forEach((space) => {
+    const f = formatMults(space);
+    if (f.hasInvalid) lines.push(`${space}: ${f.text}`);
+  });
+  if (lines.length) {
+    el.innerHTML = `${lines.join("<br />")}<br /><span class="bad">${t("invalidNote")}</span>`;
+    el.classList.add("visible");
+  } else {
+    el.innerHTML = "";
+    el.classList.remove("visible");
   }
-  el.innerHTML = html;
 }
 
 function resetMults() {
@@ -934,11 +929,6 @@ async function initUI() {
   const resetBtn = $("resetMultBtn");
   if (resetBtn) resetBtn.addEventListener("click", resetMults);
 
-  const adobeRgbCheckbox = $("adobeRgb");
-  if (adobeRgbCheckbox) {
-    wireValueEvents(adobeRgbCheckbox, updateMultDisplay);
-  }
-
   updateMultDisplay();
 
   const yreSaveBtn = $("yreSavePresetBtn");
@@ -1018,7 +1008,7 @@ async function initUI() {
         getColorBalance(),
         getFeatherRadius()
       ),
-    "Red enhancement (Method C)"
+    "Red enhancement"
   );
 
   reportStatus("statusReady");

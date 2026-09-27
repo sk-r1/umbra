@@ -68,7 +68,7 @@ Streifen in Pigmentflächen). 16 Bit hat rund 128-mal feinere Stufen, die
 Dateigröße. Für JPEG wandelt Photoshop beim Speichern ohnehin auf 8 Bit
 — dann ist die Rechnung aber schon in voller Genauigkeit passiert.
 
-**Warum Adobe RGB oder sRGB:** Methode B (LRE) rechnet mit den Formeln
+**Warum Adobe RGB oder sRGB:** LRE rechnet mit den Formeln
 für genau diese beiden Farbräume. Das Häkchen „Adobe RGB statt sRGB"
 muss zum Bild passen: an für Adobe RGB (Standard), aus für sRGB. Ein
 Bild in ProPhoto RGB (Lightroom-Standard) funktioniert zwar, wird von LRE
@@ -78,11 +78,14 @@ Kamera spielt bei RAW-Dateien keine Rolle; sie gilt nur für JPEGs.
 
 ## Drei Methoden
 
-**Methode A — Lab a/b (bisheriges Verhalten)**
+Im Panel stehen sie in dieser Reihenfolge, jede als eigener Block mit
+Optionen und Anwenden-Knopf.
+
+**Lab a/b**
 Ebene duplizieren → Dokument nach Lab konvertieren → 2×2-Stretch nur auf
 a*/b*. Die Helligkeit L* bleibt exakt unverändert.
 
-**Methode B — YRE / LRE**
+**YRE / LRE**
 Ebene duplizieren → Dokument bleibt in RGB → pro Pixel intern nach YUV
 (YRE) bzw. Lab (LRE) konvertieren → volle 3×3-Decorrelation-Stretch
 (Karhunen-Loève) → zurück nach RGB.
@@ -95,12 +98,12 @@ YRE 1.0 / 0.6 / 1.6 verstärkt V (Rot-Achse), LRE 1.0 / 1.6 / 0.6
 verstärkt a\* (Rot-Grün-Achse); die jeweils andere Farbachse wird
 gedämpft. Sie sind Schätzwerte und im Panel frei editierbar.
 
-**Sigma-Empfehlung für Methode B:** eher niedrig (ca. 15–30; Standardwert
+**Sigma-Empfehlung für YRE/LRE:** eher niedrig (ca. 15–30; Standardwert
 seit 1.2.0: 15). Ein Test mit synthetischen, stark
 korrelierten Farbdaten ergab bei Sigma 60 rund 21 % abgeschnittene Pixel,
 bei Sigma 20 keine.
 
-**Methode C — Rote Pigmente**
+**Rote Pigmente**
 Ebene duplizieren → Dokument bleibt in RGB → drei **feste** Farbrichtungen
 (grob: Helligkeit, Grün gegen Rot/Blau, Blau gegen Rot) je auf gleiche
 Streuung strecken → **direkt** als Rot, Grün und Blau ausgeben, ohne
@@ -112,7 +115,7 @@ Sigma ist relativ zum Kontrast des Bildes: 15 entspricht dem gemessenen
 Kontrast der Referenzbeispiele (Streuung je Kanal = 1,4 × mittlere
 Streuung des Originals), höher ist stärker.
 
-Anders als die Startwerte von Methode B sind Richtungen und Kontrast hier
+Anders als die Startwerte von YRE/LRE sind Richtungen und Kontrast hier
 **gemessen**: an veröffentlichten Vorher/Nachher-Paaren mit dokumentierter
 Einstellung (zwei Motive) bestimmt und an einem dritten, unabhängigen Bild
 überprüft (siehe Änderungsprotokoll 1.4.0).
@@ -122,9 +125,10 @@ Einstellung (zwei Motive) bestimmt und an einem dritten, unabhängigen Bild
 Ein Klick auf den Button macht:
 
 1. Basis-/Hintergrundebene duplizieren (über `layer.duplicate()`)
-2. Bei Methode A: Dokumentmodus auf Lab-Farbe wechseln (gilt fürs ganze
+2. Bei Lab a/b: Dokumentmodus auf Lab-Farbe wechseln (gilt fürs ganze
    Dokument – Farbmodus ist keine Ebeneneigenschaft).
-   Bei Methode B: kein Moduswechsel, das Dokument bleibt in RGB.
+   Bei Rote Pigmente und YRE/LRE: kein Moduswechsel, das Dokument bleibt
+   in RGB.
 3. Decorrelation Stretch auf die duplizierte Ebene anwenden
 
 Frühere Versionen wandelten die duplizierte Ebene zusätzlich in ein Smart
@@ -1009,6 +1013,21 @@ Kontrastfaktor 1,4 stützt sich auf zwei Bilder (ein drittes Original war
 als kontrastverstärkt beschriftet und daher nicht vergleichbar).
 
 **Version:** 1.3.0 → **1.4.0**.
+
+## Panel neu geordnet, Version 1.5.0 (27.09.2026)
+
+- **Sprechende Namen statt Buchstaben:** „Methode A/B/C" heißen im Panel
+  jetzt **Lab a/b**, **Rote Pigmente** und **YRE / LRE**. Ebenennamen und
+  Presets sind unverändert.
+- **Jede Methode ist ein geschlossener Block** (Überschrift, Optionen,
+  Anwenden-Knopf). Die YRE- und LRE-Multiplikatoren stehen jetzt direkt
+  über ihrem jeweiligen Knopf.
+- **Rote Pigmente** steht zwischen Lab a/b und YRE / LRE, damit die
+  Knöpfe der beiden einfachen Methoden ohne Scrollen sichtbar sind.
+- **Der Kasten „Aktuell verwendet" entfällt** (4–5 Zeilen, wiederholte nur
+  die Feldwerte). Ist ein Multiplikator ungültig, erscheint an dieser
+  Stelle ein Hinweis mit den tatsächlich verwendeten Werten.
+  „Geladenes Preset:" heißt kürzer „Preset:".
 
 ## Bekannte offene Punkte / nächste Schritte mit Claude Code
 
