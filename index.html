@@ -128,6 +128,18 @@
     .warning-text.visible {
       display: block;
     }
+    /* YRE- bzw. LRE-Block: Anwenden-Knopf OBEN, darunter die zugehörigen
+       Multiplikatoren. Abstand zwischen den Gruppen größer als innerhalb,
+       damit klar ist, welche Werte zu welchem Knopf gehören. */
+    .mult-group {
+      margin-top: 12px;
+    }
+    #resetMultBtn {
+      margin-top: 12px;
+    }
+    .mult-group + .mult-group {
+      margin-top: 16px;
+    }
     .mult-row {
       display: flex;
       align-items: center;
@@ -300,47 +312,51 @@
 
   <sp-checkbox id="grayscale" size="s">Grayscale (convert enhancement to brightness only)</sp-checkbox>
 
-  <sp-body class="value-label" size="XS" id="yreMultLabel">Channel multipliers YRE (Y / U / V)</sp-body>
-  <div class="mult-row">
-    <div class="mults">
-      <sp-textfield id="yre1" value="1.0" size="s"></sp-textfield>
-      <sp-textfield id="yre2" value="0.6" size="s"></sp-textfield>
-      <sp-textfield id="yre3" value="1.6" size="s"></sp-textfield>
+  <div class="mult-group">
+    <sp-button id="applyYreBtn" class="apply-btn-3d" variant="cta">Apply YRE (YUV)</sp-button>
+    <sp-body class="value-label" size="XS" id="yreMultLabel">Channel multipliers YRE (Y / U / V)</sp-body>
+    <div class="mult-row">
+      <div class="mults">
+        <sp-textfield id="yre1" value="1.0" size="s"></sp-textfield>
+        <sp-textfield id="yre2" value="0.6" size="s"></sp-textfield>
+        <sp-textfield id="yre3" value="1.6" size="s"></sp-textfield>
+      </div>
+      <div class="mult-preset-btns">
+        <sp-action-button id="yreSavePresetBtn" class="icon-btn" quiet title="Save preset">
+          <img src="icons/save.png" alt="Save" width="18" height="18" />
+        </sp-action-button>
+        <sp-action-button id="yreLoadPresetBtn" class="icon-btn" quiet title="Load preset">
+          <img src="icons/load.png" alt="Load" width="18" height="18" />
+        </sp-action-button>
+      </div>
     </div>
-    <div class="mult-preset-btns">
-      <sp-action-button id="yreSavePresetBtn" class="icon-btn" quiet title="Save preset">
-        <img src="icons/save.png" alt="Save" width="18" height="18" />
-      </sp-action-button>
-      <sp-action-button id="yreLoadPresetBtn" class="icon-btn" quiet title="Load preset">
-        <img src="icons/load.png" alt="Load" width="18" height="18" />
-      </sp-action-button>
-    </div>
+    <sp-body class="hint" size="XS">
+      <span id="yrePresetLabelText">Preset:</span> <span id="yreLoadedPresetName">-</span>
+    </sp-body>
   </div>
-  <sp-body class="hint" size="XS">
-    <span id="yrePresetLabelText">Preset:</span> <span id="yreLoadedPresetName">-</span>
-  </sp-body>
-  <sp-button id="applyYreBtn" class="apply-btn-3d" variant="cta">Apply YRE (YUV)</sp-button>
 
-  <sp-body class="value-label" size="XS" id="lreMultLabel">Channel multipliers LRE (L / a / b)</sp-body>
-  <div class="mult-row">
-    <div class="mults">
-      <sp-textfield id="lre1" value="1.0" size="s"></sp-textfield>
-      <sp-textfield id="lre2" value="1.6" size="s"></sp-textfield>
-      <sp-textfield id="lre3" value="0.6" size="s"></sp-textfield>
+  <div class="mult-group">
+    <sp-button id="applyLreBtn" class="apply-btn-3d" variant="cta">Apply LRE (Lab)</sp-button>
+    <sp-body class="value-label" size="XS" id="lreMultLabel">Channel multipliers LRE (L / a / b)</sp-body>
+    <div class="mult-row">
+      <div class="mults">
+        <sp-textfield id="lre1" value="1.0" size="s"></sp-textfield>
+        <sp-textfield id="lre2" value="1.6" size="s"></sp-textfield>
+        <sp-textfield id="lre3" value="0.6" size="s"></sp-textfield>
+      </div>
+      <div class="mult-preset-btns">
+        <sp-action-button id="lreSavePresetBtn" class="icon-btn" quiet title="Save preset">
+          <img src="icons/save.png" alt="Save" width="18" height="18" />
+        </sp-action-button>
+        <sp-action-button id="lreLoadPresetBtn" class="icon-btn" quiet title="Load preset">
+          <img src="icons/load.png" alt="Load" width="18" height="18" />
+        </sp-action-button>
+      </div>
     </div>
-    <div class="mult-preset-btns">
-      <sp-action-button id="lreSavePresetBtn" class="icon-btn" quiet title="Save preset">
-        <img src="icons/save.png" alt="Save" width="18" height="18" />
-      </sp-action-button>
-      <sp-action-button id="lreLoadPresetBtn" class="icon-btn" quiet title="Load preset">
-        <img src="icons/load.png" alt="Load" width="18" height="18" />
-      </sp-action-button>
-    </div>
+    <sp-body class="hint" size="XS">
+      <span id="lrePresetLabelText">Preset:</span> <span id="lreLoadedPresetName">-</span>
+    </sp-body>
   </div>
-  <sp-body class="hint" size="XS">
-    <span id="lrePresetLabelText">Preset:</span> <span id="lreLoadedPresetName">-</span>
-  </sp-body>
-  <sp-button id="applyLreBtn" class="apply-btn-3d" variant="cta">Apply LRE (Lab)</sp-button>
 
   <!-- Nur sichtbar, wenn ein Multiplikator-Feld ungültig ist (früher ein
        dauerhafter "Aktuell verwendet"-Kasten mit 4–5 Zeilen). -->

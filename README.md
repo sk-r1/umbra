@@ -1029,6 +1029,13 @@ als kontrastverstärkt beschriftet und daher nicht vergleichbar).
   Stelle ein Hinweis mit den tatsächlich verwendeten Werten.
   „Geladenes Preset:" heißt kürzer „Preset:".
 
+## Korrektur Layout, Version 1.5.1 (27.09.2026)
+
+Bei YRE / LRE steht jetzt der **Anwenden-Knopf oben** und die zugehörigen
+Multiplikatoren direkt darunter; zwischen den beiden Gruppen ist mehr
+Abstand als innerhalb. In 1.5.0 standen die Werte über dem Knopf, sodass
+nicht klar war, welcher Knopf zu welchen Werten gehört.
+
 ## Bekannte offene Punkte / nächste Schritte mit Claude Code
 
 Ich habe den Code nicht gegen eine echte Photoshop-Instanz getestet – das
