@@ -1,7 +1,7 @@
 {
   "id": "com.example.umbra",
   "name": "Umbra",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "main": "index.html",
   "manifestVersion": 5,
   "host": {
@@ -17,7 +17,7 @@
       },
       "minimumSize": {
         "width": 325,
-        "height": 520
+        "height": 580
       },
       "maximumSize": {
         "width": 325,
@@ -25,11 +25,11 @@
       },
       "preferredDockedSize": {
         "width": 325,
-        "height": 680
+        "height": 620
       },
       "preferredFloatingSize": {
         "width": 325,
-        "height": 700
+        "height": 640
       },
       "icons": [
         {
@@ -54,7 +54,9 @@
   "requiredPermissions": {
     "localFileSystem": "request",
     "launchProcess": {
-      "schemes": ["https"]
+      "schemes": [
+        "https"
+      ]
     }
   },
   "icons": [

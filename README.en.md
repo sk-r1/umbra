@@ -84,20 +84,26 @@ files; it only applies to JPEGs.
 
 ## Panel layout
 
-The Sigma slider is always at the top. Less frequently used options
-(preserve mean, saturation, color balance CB, feather radius) are under
-**"More settings"**, the YRE/LRE multipliers under **"Channel
-multipliers"**. Click a header to expand or collapse it; when collapsed,
-the header shows what differs from the defaults (e.g. "· CB on",
-"· changed", "· invalid"). The expanded/collapsed state is remembered.
-The apply buttons are always visible, and only one help text ("?") is
-open at a time.
+At the top are the Sigma slider and the **method picker** (Lab a/b,
+Universal, Red pigments, YRE / LRE). Below it, only the options that
+apply to the selected method are shown, plus one apply button:
+
+| Option | Lab a/b | Universal | Red pigments | YRE / LRE |
+|---|---|---|---|---|
+| Sigma, color balance (CB), feather radius | ✓ | ✓ | ✓ | ✓ |
+| Preserve original mean, saturation | ✓ | – | – | ✓ |
+| Keep result in Lab mode | ✓ | – | – | – |
+| Grayscale | – | – | – | ✓ |
+| Adobe RGB instead of sRGB | – | – | – | LRE only |
+
+For YRE / LRE, a toggle switches between the two spaces; only the
+multiplier row of the selected space is shown (with save, load and ↺
+reset). The "?" next to the picker opens help for the selected method in
+its own window. The selected method and space are remembered.
 
 ## Four methods
 
-They appear in the panel in the order Lab a/b, Universal, Red pigments,
-YRE / LRE, each as its own block with its
-options and apply button.
+They are selected with the method picker in the panel (see "Panel layout").
 
 **Lab a/b**
 Duplicates the layer → converts the document to Lab mode → stretches

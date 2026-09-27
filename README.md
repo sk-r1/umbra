@@ -78,20 +78,27 @@ Kamera spielt bei RAW-Dateien keine Rolle; sie gilt nur für JPEGs.
 
 ## Panel-Aufbau
 
-Oben steht immer der Sigma-Regler. Seltener gebrauchte Optionen
-(Mittelwert beibehalten, Sättigung, Farbausgleich CB, Federradius) liegen
-unter **„Weitere Einstellungen"**, die YRE/LRE-Multiplikatoren unter
-**„Kanal-Multiplikatoren"**. Beide Bereiche lassen sich per Klick auf die
-Kopfzeile auf- und zuklappen; eingeklappt zeigt die Kopfzeile, was vom
-Standard abweicht (z. B. „· CB an", „· geändert", „· ungültig"). Der
-Klappzustand bleibt über Neustarts erhalten. Die Anwenden-Knöpfe sind
-immer sichtbar, und es ist immer nur ein Hilfetext („?") geöffnet.
+Oben stehen der Sigma-Regler und die **Methoden-Auswahlliste** (Lab a/b,
+Universal, Rote Pigmente, YRE / LRE). Darunter erscheinen nur die Optionen,
+die für die gewählte Methode wirken, und ein Anwenden-Knopf:
+
+| Option | Lab a/b | Universal | Rote Pigmente | YRE / LRE |
+|---|---|---|---|---|
+| Sigma, Farbausgleich (CB), Federradius | ✓ | ✓ | ✓ | ✓ |
+| Mittelwert beibehalten, Sättigung | ✓ | – | – | ✓ |
+| Ergebnis in Lab belassen | ✓ | – | – | – |
+| Graustufen | – | – | – | ✓ |
+| Adobe RGB statt sRGB | – | – | – | nur LRE |
+
+Bei YRE / LRE schaltet ein Umschalter zwischen den beiden Räumen; darunter
+steht nur die Multiplikator-Reihe des gewählten Raums (mit Speichern,
+Laden und ↺ Zurücksetzen). Das „?" neben der Auswahlliste öffnet die Hilfe
+zur gewählten Methode als eigenes Fenster. Methode und Raum bleiben über
+Neustarts erhalten.
 
 ## Vier Methoden
 
-Im Panel stehen sie in der Reihenfolge Lab a/b, Universal, Rote Pigmente,
-YRE / LRE, jede als eigener Block mit
-Optionen und Anwenden-Knopf.
+Gewählt werden sie über die Auswahlliste im Panel (siehe „Panel-Aufbau").
 
 **Lab a/b**
 Ebene duplizieren → Dokument nach Lab konvertieren → 2×2-Stretch nur auf
@@ -1114,6 +1121,29 @@ Klappzustand wird mit der Sprache in `umbra-settings.json` gespeichert.
 Standard beim ersten Start: beides eingeklappt.
 
 **Version:** 1.6.0 → **1.7.0**.
+
+## Panel neu aufgebaut: Methodenwahl, Version 1.8.0 (27.09.2026)
+
+Die Klappbereiche aus 1.7.0 haben sich nicht bewährt: Aufgeklappte
+Bereiche und Hilfetexte verschwanden unter dem unteren Panelrand (das
+Panel scrollt nicht), und die Kurzfassungen in den Kopfzeilen waren nicht
+eingängig. Neuer Grundsatz: **Das Panel wird nie höher als seine
+Mindesthöhe, nichts klappt auf.**
+
+- **Eine Methode zur Zeit** per Auswahlliste; darunter nur die für diese
+  Methode wirksamen Optionen und **ein** Anwenden-Knopf.
+- **YRE / LRE per Umschalter**, nur eine Multiplikator-Reihe sichtbar;
+  „Adobe RGB statt sRGB" nur bei LRE.
+- **Hilfe als eigenes Fenster** („?"), in normaler Schriftgröße; das Panel
+  ändert dabei seine Höhe nicht.
+- **Mindesthöhe** des Panels auf 580 px angehoben (höchster Fall: LRE).
+- Gewählte Methode und YRE/LRE werden mit der Sprache gespeichert.
+
+Vorab in einem separaten Test-Plugin in Photoshop geprüft: Auswahlliste
+(„change" liefert Wert und Position), Umschalter und Dialogfenster
+funktionieren.
+
+**Version:** 1.7.0 → **1.8.0**.
 
 ## Bekannte offene Punkte / nächste Schritte mit Claude Code
 

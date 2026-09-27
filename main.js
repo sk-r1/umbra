@@ -60,7 +60,7 @@ const MANUAL_URL_EN = "https://github.com/sk-r1/umbra/blob/main/README.en.md";
 // refreshVersionMenuLabel()). MUSS bei einem Versionssprung von Hand mit
 // manifest.json "version" synchron gehalten werden, falls der
 // Automatismus aus irgendeinem Grund nicht greift.
-const FALLBACK_VERSION = "1.7.0";
+const FALLBACK_VERSION = "1.8.0";
 let pluginVersion = FALLBACK_VERSION;
 
 // Diagnose-Ausgaben (min/max der Rohkanäle) in die DevTools-Konsole.
@@ -104,7 +104,7 @@ const I18N = {
     // Zeilen um. Das machte den Method-B-Block höher als im Deutschen und
     // schob das gesamte restliche Layout nach unten (weniger Rand-Abstand
     // unten). Die Kurzform (~238px) passt wie die deutsche in eine Zeile.
-    adobeRgbText: "Adobe RGB (1998) instead of sRGB — LRE only",
+    adobeRgbText: "Adobe RGB (1998) instead of sRGB",
     yreMultLabel: "Channel multipliers YRE (Y / U / V)",
     lreMultLabel: "Channel multipliers LRE (L / a / b)",
     savePreset: "Save preset…",
@@ -166,14 +166,8 @@ const I18N = {
     menuManual: "User Manual",
     menuRepo: "GitHub Repository",
     menuToRgb: "Convert document to RGB",
-    advTitle: "More settings",
-    multTitle: "Channel multipliers",
-    sumPreserve: "mean kept",
-    sumSat: (v) => `saturation ${v}`,
-    sumCb: "CB on",
-    sumFeather: (v) => `feather ${v}`,
-    multChanged: "changed",
-    multInvalid: "invalid",
+    helpTitle: "Umbra – Help",
+    featherTitle: "Feather radius",
   },
   de: {
     sigmaLabel: "Ziel-Kontrast (Sigma):",
@@ -184,7 +178,7 @@ const I18N = {
     methodAHint:
       "Wandelt nach Lab und streckt nur a*/b*; die Helligkeit bleibt exakt erhalten. Danach zurück nach RGB, außer \"Ergebnis in Lab belassen\" ist angehakt (für Kanal-Bearbeitung).",
     methodBTitle: "YRE / LRE",
-    adobeRgbText: "Adobe RGB (1998) statt sRGB — nur für LRE relevant",
+    adobeRgbText: "Adobe RGB (1998) statt sRGB",
     yreMultLabel: "Kanal-Multiplikatoren YRE (Y / U / V)",
     lreMultLabel: "Kanal-Multiplikatoren LRE (L / a / b)",
     savePreset: "Preset speichern…",
@@ -246,14 +240,8 @@ const I18N = {
     menuManual: "Anleitung",
     menuRepo: "GitHub-Repository",
     menuToRgb: "Dokument nach RGB wandeln",
-    advTitle: "Weitere Einstellungen",
-    multTitle: "Kanal-Multiplikatoren",
-    sumPreserve: "Mittelwert behalten",
-    sumSat: (v) => `Sättigung ${v}`,
-    sumCb: "CB an",
-    sumFeather: (v) => `Feder ${v}`,
-    multChanged: "geändert",
-    multInvalid: "ungültig",
+    helpTitle: "Umbra – Hilfe",
+    featherTitle: "Federradius",
   },
 };
 
@@ -266,11 +254,11 @@ function t(key, ...args) {
 
 const LANG_SETTINGS_FILE = "umbra-settings.json";
 
-// Panel-Einstellungen, die über Neustarts erhalten bleiben: Sprache und
-// ob "Weitere Einstellungen" bzw. die Kanal-Multiplikatoren aufgeklappt
-// sind. Standard beim allerersten Start: Englisch, beides zugeklappt
-// (spart Höhe — das Panel scrollt nicht, alle Knöpfe müssen sichtbar sein).
-let uiSettings = { language: "en", advOpen: false, multOpen: false };
+// Panel-Einstellungen, die über Neustarts erhalten bleiben: Sprache,
+// gewählte Methode und bei YRE/LRE der gewählte Raum. Standard beim
+// allerersten Start: Englisch, Universal, YRE.
+const METHOD_KEYS = ["lab", "uni", "red", "yrelre"];
+let uiSettings = { language: "en", method: "uni", space: "YRE" };
 
 async function loadSettings() {
   try {
@@ -285,8 +273,8 @@ async function loadSettings() {
     const parsed = JSON.parse(text);
     uiSettings = {
       language: parsed.language === "de" ? "de" : "en",
-      advOpen: parsed.advOpen === true,
-      multOpen: parsed.multOpen === true,
+      method: METHOD_KEYS.includes(parsed.method) ? parsed.method : "uni",
+      space: parsed.space === "LRE" ? "LRE" : "YRE",
     };
   } catch (err) {
     console.warn("[Umbra] Einstellungen konnten nicht geladen werden:", err);
@@ -335,15 +323,8 @@ function applyStaticTranslations() {
   setText("saturationLabelText", "saturationLabel");
   setText("colorBalance", "colorBalanceText");
   setText("featherLabelText", "featherLabelText");
-  setText("featherHint", "featherHint");
-  setText("advTitle", "advTitle");
-  setText("multTitle", "multTitle");
   setText("grayscale", "grayscaleText");
-  setText("methodATitle", "methodATitle");
   setText("keepLab", "keepLabText");
-  setText("applyBtn", "applyBtn");
-  setText("methodAHint", "methodAHint");
-  setText("methodBTitle", "methodBTitle");
   setText("adobeRgb", "adobeRgbText");
   setText("yreMultLabel", "yreMultLabel");
   setText("lreMultLabel", "lreMultLabel");
@@ -357,16 +338,11 @@ function applyStaticTranslations() {
   // Text. Erklärung steht stattdessen im aufklappbaren Methode-B-Hinweis.
   setText("yrePresetLabelText", "loadedPreset");
   setText("lrePresetLabelText", "loadedPreset");
-  setText("resetMultBtn", "resetMults");
-  setText("applyYreBtn", "applyYreBtn");
-  setText("applyLreBtn", "applyLreBtn");
-  setText("methodCTitle", "methodCTitle");
-  setText("applyRedBtn", "applyRedBtn");
-  setText("methodUTitle", "methodUTitle");
-  setText("applyUniBtn", "applyUniBtn");
-  setHtml("methodBHint", "methodBHint");
-  setHtml("methodCHint", "methodCHint");
-  setHtml("methodUHint", "methodUHint");
+  // Einträge der Methoden-Auswahlliste (die Überschriften-Texte von früher)
+  setText("miLab", "methodATitle");
+  setText("miUni", "methodUTitle");
+  setText("miRed", "methodCTitle");
+  setText("miYreLre", "methodBTitle");
 
   const sigmaWarningEl = $("sigmaWarning");
   if (sigmaWarningEl && sigmaWarningEl.classList.contains("visible")) {
@@ -379,11 +355,15 @@ function applyStaticTranslations() {
   // ein Häkchen, siehe refreshMenuLanguageChecks().)
 
   updateMultDisplay();
+  refreshMethodUI();
 }
 
 async function setLanguage(lang) {
   currentLang = lang === "de" ? "de" : "en";
   applyStaticTranslations();
+  // Die Auswahlliste zeigt den übersetzten Namen erst, wenn die Auswahl neu
+  // gesetzt wird.
+  syncPicker();
   // Footer-Statuszeile neu übersetzen (siehe reportStatus/renderStatus
   // weiter unten) — applyStaticTranslations() fasst #status bewusst NICHT
   // an, da dort kein fester Text steht, sondern eine der Statusmeldungen.
@@ -664,79 +644,198 @@ function updateMultDisplay() {
   const el = $("multDisplay");
   if (!el) return;
 
-  const lines = [];
-  ["YRE", "LRE"].forEach((space) => {
-    const f = formatMults(space);
-    if (f.hasInvalid) lines.push(`${space}: ${f.text}`);
-  });
-  if (lines.length) {
-    el.innerHTML = `${lines.join("<br />")}<br /><span class="bad">${t("invalidNote")}</span>`;
+  // Nur für den gewählten Raum und nur bei Methode YRE/LRE.
+  const space = uiSettings.space;
+  const f = formatMults(space);
+  if (uiSettings.method === "yrelre" && f.hasInvalid) {
+    el.innerHTML = `${space}: ${f.text}<br /><span class="bad">${t("invalidNote")}</span>`;
     el.classList.add("visible");
   } else {
     el.innerHTML = "";
     el.classList.remove("visible");
   }
-  refreshSummaries();
 }
 
-const HELP_HINT_IDS = ["methodAHint", "methodBHint", "methodCHint", "methodUHint", "featherHint"];
+// ---------------------------------------------------------------------
+// Methodenwahl (ab 1.8.0)
+//
+// Das Panel zeigt immer genau eine Methode und nur die Optionen, die für
+// sie wirken (Grundsatz: das Panel wird nie höher als seine Mindesthöhe,
+// nichts klappt auf, Hilfe kommt als Dialog).
+// ---------------------------------------------------------------------
 
-/**
- * Kurzfassung eingeklappter Einstellungen in der jeweiligen Kopfzeile:
- * Weicht dort etwas vom Standard ab, steht es sichtbar daneben (z. B.
- * "· CB an"), damit niemand unbemerkt mit versteckten Einstellungen rechnet.
- */
-function refreshSummaries() {
-  const adv = $("advSummary");
-  if (adv) {
-    const parts = [];
-    if (getPreserveMean()) parts.push(t("sumPreserve"));
-    const sat = getSaturation();
-    if (Math.abs(sat - 1) > 0.005) parts.push(t("sumSat", sat.toFixed(2)));
-    if (getColorBalance()) parts.push(t("sumCb"));
-    const feather = Math.round(getFeatherRadius());
-    if (feather > 0) parts.push(t("sumFeather", feather));
-    adv.textContent = parts.length ? "· " + parts.join(", ") : "";
+// Welche Options-Blöcke je Methode sichtbar sind.
+const METHOD_OPTIONS = {
+  lab: ["optKeepLab", "optPreserveMean", "optSaturation", "optColorBalance", "optFeather"],
+  uni: ["optColorBalance", "optFeather"],
+  red: ["optColorBalance", "optFeather"],
+  yrelre: ["segBlock", "optGrayscale", "optPreserveMean", "optSaturation", "optColorBalance", "optFeather"],
+};
+const ALL_OPTION_BLOCKS = [
+  "segBlock", "yreBlock", "lreBlock", "optKeepLab", "optAdobeRgb", "optGrayscale",
+  "optPreserveMean", "optSaturation", "optColorBalance", "optFeather",
+];
+const METHOD_HELP = {
+  lab: ["methodATitle", "methodAHint"],
+  uni: ["methodUTitle", "methodUHint"],
+  red: ["methodCTitle", "methodCHint"],
+  yrelre: ["methodBTitle", "methodBHint"],
+};
+
+function showBlock(id, visible) {
+  const el = $(id);
+  if (el) el.classList.toggle("hidden", !visible);
+}
+
+/** Blendet die Optionen der gewählten Methode ein und beschriftet den
+ * Anwenden-Knopf passend. */
+function refreshMethodUI() {
+  const m = uiSettings.method;
+  const visible = new Set(METHOD_OPTIONS[m] || []);
+  if (m === "yrelre") {
+    visible.add(uiSettings.space === "YRE" ? "yreBlock" : "lreBlock");
+    // Das Farbprofil wirkt nur bei LRE (YRE rechnet profilunabhängig).
+    if (uiSettings.space === "LRE") visible.add("optAdobeRgb");
   }
-  const mult = $("multSummary");
-  if (mult) {
-    let invalid = false;
-    let changed = false;
-    Object.keys(MULT_FIELDS).forEach((space) => {
-      const r = readMults(space);
-      if (r.invalid.length) invalid = true;
-      if (r.values.some((v, i) => Math.abs(v - PRESETS[space][i]) > 1e-9)) changed = true;
-    });
-    mult.textContent = invalid
-      ? "· " + t("multInvalid")
-      : changed
-      ? "· " + t("multChanged")
-      : "";
-    mult.classList.toggle("warn", invalid);
-  }
-}
+  ALL_OPTION_BLOCKS.forEach((id) => showBlock(id, visible.has(id)));
 
-function applyToggleState() {
-  const adv = $("advSection");
-  if (adv) adv.classList.toggle("open", uiSettings.advOpen);
-  const advIcon = $("advIcon");
-  if (advIcon) advIcon.textContent = uiSettings.advOpen ? "–" : "+";
-  const multArea = $("multArea");
-  if (multArea) multArea.classList.toggle("collapsed", !uiSettings.multOpen);
-  const multIcon = $("multIcon");
-  if (multIcon) multIcon.textContent = uiSettings.multOpen ? "–" : "+";
-}
-
-function resetMults() {
-  Object.keys(MULT_FIELDS).forEach((space) => {
-    MULT_FIELDS[space].forEach((id, idx) => {
-      const el = $(id);
-      if (el) el.value = String(PRESETS[space][idx]);
-    });
-    // Die Multiplikatoren entsprechen jetzt nicht mehr dem geladenen
-    // Preset (falls eines geladen war) — Anzeige zurücksetzen.
-    setLoadedPresetName(space, null);
+  const yre = $("segYre");
+  const lre = $("segLre");
+  [[yre, "YRE"], [lre, "LRE"]].forEach(([btn, sp]) => {
+    if (!btn) return;
+    if (uiSettings.space === sp) btn.setAttribute("selected", "");
+    else btn.removeAttribute("selected");
   });
+
+  const btn = $("applyBtn");
+  if (btn) {
+    const key =
+      m === "lab" ? "applyBtn"
+      : m === "red" ? "applyRedBtn"
+      : m === "yrelre" ? (uiSettings.space === "YRE" ? "applyYreBtn" : "applyLreBtn")
+      : "applyUniBtn";
+    btn.textContent = t(key);
+  }
+  updateMultDisplay();
+}
+
+/** Setzt die Auswahlliste auf die gespeicherte Methode (beim Start und
+ * nach einem Sprachwechsel). Beide Wege, weil UXP-Versionen die Auswahl
+ * unterschiedlich spiegeln. */
+function syncPicker() {
+  const picker = $("methodPicker");
+  if (!picker) return;
+  const idx = METHOD_KEYS.indexOf(uiSettings.method);
+  const items = picker.querySelectorAll ? picker.querySelectorAll("sp-menu-item") : [];
+  items.forEach((it, i) => {
+    if (i === idx) it.setAttribute("selected", "");
+    else it.removeAttribute("selected");
+  });
+  try {
+    picker.selectedIndex = idx;
+  } catch (e) {
+    // nicht jede UXP-Version erlaubt das Setzen — das selected-Attribut reicht
+  }
+}
+
+function setMethod(key) {
+  if (!METHOD_KEYS.includes(key) || key === uiSettings.method) return;
+  uiSettings.method = key;
+  refreshMethodUI();
+  saveSettings();
+}
+
+function setSpace(space) {
+  if (space === uiSettings.space) return;
+  uiSettings.space = space;
+  refreshMethodUI();
+  saveSettings();
+}
+
+/** Liest die gewählte Methode aus der Auswahlliste (in Photoshop getestet:
+ * "change" liefert .value und .selectedIndex zuverlässig). */
+function readPickerMethod(picker) {
+  if (METHOD_KEYS.includes(picker.value)) return picker.value;
+  const idx = typeof picker.selectedIndex === "number" ? picker.selectedIndex : -1;
+  return METHOD_KEYS[idx];
+}
+
+/** Hilfe als eigenes Fenster (in Photoshop getestet: uxpShowModal). */
+async function showHelp(kind) {
+  const dlg = $("helpDlg");
+  if (!dlg) return;
+  const [titleKey, textKey] =
+    kind === "feather" ? ["featherTitle", "featherHint"] : METHOD_HELP[kind] || METHOD_HELP.uni;
+  const title = $("dlgTitle");
+  const text = $("dlgText");
+  if (title) title.textContent = t(titleKey);
+  if (text) text.innerHTML = t(textKey);
+  try {
+    if (typeof dlg.uxpShowModal === "function") {
+      await dlg.uxpShowModal({
+        title: t("helpTitle"),
+        resize: "none",
+        size: { width: 420, height: 300 },
+      });
+    } else {
+      dlg.showModal();
+    }
+  } catch (err) {
+    console.warn("[Umbra] Hilfe-Fenster konnte nicht geöffnet werden:", err);
+  }
+}
+
+/** Führt die gewählte Methode aus (ein Anwenden-Knopf für alle). */
+function runCurrentMethod() {
+  switch (uiSettings.method) {
+    case "lab":
+      return runLabAbWorkflow(
+        getSigma(),
+        getPreserveMean(),
+        reportStatus,
+        getSaturation(),
+        getColorBalance(),
+        getFeatherRadius(),
+        getKeepLab()
+      );
+    case "red":
+      return runRedWorkflow(getSigma(), reportStatus, getColorBalance(), getFeatherRadius());
+    case "yrelre": {
+      const space = uiSettings.space;
+      return runReWorkflow(
+        space,
+        readMults(space).values,
+        getSigma(),
+        getPreserveMean(),
+        reportStatus,
+        getProfileName(),
+        getSaturation(),
+        getGrayscale(),
+        getColorBalance(),
+        getFeatherRadius()
+      );
+    }
+    default:
+      return runUniversalWorkflow(getSigma(), reportStatus, getColorBalance(), getFeatherRadius());
+  }
+}
+
+function currentCommandName() {
+  const m = uiSettings.method;
+  if (m === "lab") return "Decorrelation Stretch (Lab a/b)";
+  if (m === "red") return "Red enhancement";
+  if (m === "yrelre") return `Decorrelation Stretch (${uiSettings.space})`;
+  return "Universal enhancement";
+}
+
+function resetMults(space) {
+  MULT_FIELDS[space].forEach((id, idx) => {
+    const el = $(id);
+    if (el) el.value = String(PRESETS[space][idx]);
+  });
+  // Die Multiplikatoren entsprechen jetzt nicht mehr dem geladenen Preset
+  // (falls eines geladen war) — Anzeige zurücksetzen.
+  setLoadedPresetName(space, null);
   updateMultDisplay();
 }
 
@@ -877,7 +976,9 @@ function wireButton(id, workFn, commandName) {
   btn.addEventListener("click", async () => {
     try {
       reportStatus("statusComputing");
-      await core.executeAsModal(workFn, { commandName });
+      await core.executeAsModal(workFn, {
+        commandName: typeof commandName === "function" ? commandName() : commandName,
+      });
       reportStatus("statusDone");
     } catch (err) {
       console.error(err);
@@ -937,34 +1038,25 @@ async function initUI() {
   // Sprachumschaltung läuft jetzt über das Flyout-Menü, siehe
   // invokeMenuItem() für die "langDe"/"langEn"-Einträge.)
 
-  // Hilfe-Buttons: Klick blendet den zugehörigen Hinweistext ein/aus.
-  // Gemeinsame Schleife statt drei fast identischer Blöcke.
-  [
-    ["methodAHelpBtn", "methodAHint"],
-    ["methodBHelpBtn", "methodBHint"],
-    ["methodCHelpBtn", "methodCHint"],
-    ["methodUHelpBtn", "methodUHint"],
-    ["featherHelpBtn", "featherHint"],
-  ].forEach(([btnId, hintId]) => {
-    const btn = $(btnId);
-    const hint = $(hintId);
-    if (btn && hint) {
-      btn.addEventListener("click", () => {
-        // Immer nur ein Hilfetext offen: Öffnen schließt die anderen, damit
-        // das (nicht scrollende) Panel nicht über den Bildschirm wächst.
-        const willOpen = !hint.classList.contains("visible");
-        HELP_HINT_IDS.forEach((id) => {
-          const other = $(id);
-          if (other) other.classList.remove("visible");
-        });
-        if (willOpen) hint.classList.add("visible");
-      });
-    } else {
-      console.warn(
-        `[Umbra] Hilfe-Button/-Hinweis nicht gefunden: ${btnId}/${hintId}`
-      );
-    }
-  });
+  // Methode wählen, YRE/LRE umschalten, Hilfe als Fenster
+  const picker = $("methodPicker");
+  if (picker) {
+    syncPicker();
+    picker.addEventListener("change", () => setMethod(readPickerMethod(picker)));
+  } else {
+    console.warn("[Umbra] Methoden-Auswahlliste nicht gefunden.");
+  }
+  const segYre = $("segYre");
+  if (segYre) segYre.addEventListener("click", () => setSpace("YRE"));
+  const segLre = $("segLre");
+  if (segLre) segLre.addEventListener("click", () => setSpace("LRE"));
+  const methodHelpBtn = $("methodHelpBtn");
+  if (methodHelpBtn) methodHelpBtn.addEventListener("click", () => showHelp(uiSettings.method));
+  const featherHelpBtn = $("featherHelpBtn");
+  if (featherHelpBtn) featherHelpBtn.addEventListener("click", () => showHelp("feather"));
+  const dlgOk = $("dlgOk");
+  const helpDlg = $("helpDlg");
+  if (dlgOk && helpDlg) dlgOk.addEventListener("click", () => helpDlg.close("ok"));
 
   const sigmaSlider = $("sigma");
   const sigmaVal = $("sigmaVal");
@@ -988,7 +1080,6 @@ async function initUI() {
   if (saturationSlider && saturationVal) {
     const updateSat = () => {
       saturationVal.textContent = Number(saturationSlider.value).toFixed(2);
-      refreshSummaries();
     };
     wireValueEvents(saturationSlider, updateSat);
     updateSat();
@@ -1009,7 +1100,6 @@ async function initUI() {
   if (featherSlider && featherVal) {
     const updateFeather = () => {
       featherVal.textContent = String(Math.round(Number(featherSlider.value)));
-      refreshSummaries();
     };
     wireValueEvents(featherSlider, updateFeather);
     updateFeather();
@@ -1029,28 +1119,12 @@ async function initUI() {
     });
   });
 
-  const resetBtn = $("resetMultBtn");
-  if (resetBtn) resetBtn.addEventListener("click", resetMults);
+  const yreResetBtn = $("yreResetBtn");
+  if (yreResetBtn) yreResetBtn.addEventListener("click", () => resetMults("YRE"));
+  const lreResetBtn = $("lreResetBtn");
+  if (lreResetBtn) lreResetBtn.addEventListener("click", () => resetMults("LRE"));
 
-  // Einklappbare Bereiche ("Weitere Einstellungen", Kanal-Multiplikatoren).
-  // Zustand wird gespeichert, damit das Panel beim nächsten Start so
-  // aussieht wie verlassen.
-  [
-    ["advToggle", "advOpen"],
-    ["multToggle", "multOpen"],
-  ].forEach(([id, key]) => {
-    const el = $(id);
-    if (!el) return;
-    el.addEventListener("click", () => {
-      uiSettings[key] = !uiSettings[key];
-      applyToggleState();
-      saveSettings();
-    });
-  });
-  applyToggleState();
-  ["preserveMean", "colorBalance"].forEach((id) => wireValueEvents($(id), refreshSummaries));
-
-  updateMultDisplay();
+  refreshMethodUI();
 
   const yreSaveBtn = $("yreSavePresetBtn");
   if (yreSaveBtn) {
@@ -1069,80 +1143,8 @@ async function initUI() {
     lreLoadBtn.addEventListener("click", () => loadPresetFromFile("LRE"));
   }
 
-  wireButton(
-    "applyBtn",
-    () =>
-      runLabAbWorkflow(
-        getSigma(),
-        getPreserveMean(),
-        reportStatus,
-        getSaturation(),
-        getColorBalance(),
-        getFeatherRadius(),
-        getKeepLab()
-      ),
-    "Decorrelation Stretch (Lab a/b)"
-  );
-
-  wireButton(
-    "applyYreBtn",
-    () =>
-      runReWorkflow(
-        "YRE",
-        readMults("YRE").values,
-        getSigma(),
-        getPreserveMean(),
-        reportStatus,
-        getProfileName(),
-        getSaturation(),
-        getGrayscale(),
-        getColorBalance(),
-        getFeatherRadius()
-      ),
-    "Decorrelation Stretch (YRE)"
-  );
-
-  wireButton(
-    "applyLreBtn",
-    () =>
-      runReWorkflow(
-        "LRE",
-        readMults("LRE").values,
-        getSigma(),
-        getPreserveMean(),
-        reportStatus,
-        getProfileName(),
-        getSaturation(),
-        getGrayscale(),
-        getColorBalance(),
-        getFeatherRadius()
-      ),
-    "Decorrelation Stretch (LRE)"
-  );
-
-  wireButton(
-    "applyRedBtn",
-    () =>
-      runRedWorkflow(
-        getSigma(),
-        reportStatus,
-        getColorBalance(),
-        getFeatherRadius()
-      ),
-    "Red enhancement"
-  );
-
-  wireButton(
-    "applyUniBtn",
-    () =>
-      runUniversalWorkflow(
-        getSigma(),
-        reportStatus,
-        getColorBalance(),
-        getFeatherRadius()
-      ),
-    "Universal enhancement"
-  );
+  // Ein Anwenden-Knopf für alle Methoden.
+  wireButton("applyBtn", runCurrentMethod, currentCommandName);
 
   reportStatus("statusReady");
 }
