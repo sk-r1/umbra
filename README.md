@@ -1145,6 +1145,14 @@ funktionieren.
 
 **Version:** 1.7.0 → **1.8.0**.
 
+## Feinschliff Panel, Version 1.8.1 (27.09.2026)
+
+- Methoden-Auswahlliste eine Stufe größer (größere Schrift).
+- Anwenden-Knopf endet rechts bündig mit Reglern und Auswahlliste (die
+  Spalte der ↺/?-Knöpfe bleibt frei).
+- Umschalter YRE | LRE schmal; der aktive Modus ist blau gefüllt, der
+  inaktive nur umrandet.
+
 ## Bekannte offene Punkte / nächste Schritte mit Claude Code
 
 Ich habe den Code nicht gegen eine echte Photoshop-Instanz getestet – das

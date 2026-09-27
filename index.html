@@ -139,21 +139,47 @@
     .method-row sp-picker {
       flex: 1;
     }
+    /* Auswahlliste etwas prominenter; ob font-weight das Innere des
+       Spectrum-Elements erreicht, hängt von UXP ab (Größe "m" wirkt sicher). */
+    .method-picker {
+      font-weight: bold;
+    }
+    /* Gleicher Abstand wie ↺ neben den Reglern (margin-left 4px), damit die
+       Auswahlliste rechts bündig mit den Reglern endet. */
+    .method-row .help-btn {
+      margin-left: 4px;
+    }
     .section-divider {
       margin: 8px 0 2px 0;
     }
     .seg {
       display: flex;
-      margin-top: 4px;
+      margin-top: 6px;
     }
-    .seg sp-action-button {
-      flex: 1;
+    .seg sp-button {
+      width: 72px;
+      min-width: 72px;
+      margin-top: 0;
+    }
+    .seg sp-button + sp-button {
+      margin-left: 4px;
     }
     .hidden {
       display: none;
     }
-    #applyBtn {
+    /* Anwenden-Knopf endet bündig mit Reglern/Auswahlliste: rechts bleibt
+       die Spalte der ↺/?-Knöpfe (24px + 4px Abstand) frei. */
+    .apply-row {
+      display: flex;
       margin-top: 10px;
+    }
+    .apply-row sp-button {
+      flex: 1;
+      width: auto;
+      margin-top: 0;
+    }
+    .icon-spacer {
+      flex: 0 0 28px;
     }
     dialog {
       width: 400px;
@@ -275,7 +301,7 @@
   <sp-body id="sigmaWarning" class="warning-text" size="XS"></sp-body>
 
   <div class="method-row">
-    <sp-picker id="methodPicker" size="s" label="Method">
+    <sp-picker id="methodPicker" class="method-picker" size="m" label="Method">
       <sp-menu slot="options">
         <sp-menu-item id="miLab" value="lab">Lab a/b</sp-menu-item>
         <sp-menu-item id="miUni" value="uni" selected>Universal</sp-menu-item>
@@ -291,8 +317,8 @@
   <!-- YRE / LRE: Umschalter und EINE Multiplikator-Reihe (die des gewählten
        Raums). Beide Reihen existieren im DOM, sichtbar ist nur eine. -->
   <div id="segBlock" class="seg">
-    <sp-action-button id="segYre" size="s" selected>YRE</sp-action-button>
-    <sp-action-button id="segLre" size="s">LRE</sp-action-button>
+    <sp-button id="segYre" size="s" variant="cta">YRE</sp-button>
+    <sp-button id="segLre" size="s" variant="secondary">LRE</sp-button>
   </div>
   <div id="yreBlock">
     <sp-body class="value-label" size="XS" id="yreMultLabel">Channel multipliers YRE (Y / U / V)</sp-body>
@@ -368,7 +394,10 @@
     </div>
   </div>
 
-  <sp-button id="applyBtn" class="apply-btn-3d" variant="cta">Apply universal</sp-button>
+  <div class="apply-row">
+    <sp-button id="applyBtn" class="apply-btn-3d" variant="cta">Apply universal</sp-button>
+    <div class="icon-spacer"></div>
+  </div>
 
   <sp-divider size="small" class="section-divider"></sp-divider>
 

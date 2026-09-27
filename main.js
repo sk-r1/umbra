@@ -60,7 +60,7 @@ const MANUAL_URL_EN = "https://github.com/sk-r1/umbra/blob/main/README.en.md";
 // refreshVersionMenuLabel()). MUSS bei einem Versionssprung von Hand mit
 // manifest.json "version" synchron gehalten werden, falls der
 // Automatismus aus irgendeinem Grund nicht greift.
-const FALLBACK_VERSION = "1.8.0";
+const FALLBACK_VERSION = "1.8.1";
 let pluginVersion = FALLBACK_VERSION;
 
 // Diagnose-Ausgaben (min/max der Rohkanäle) in die DevTools-Konsole.
@@ -701,10 +701,11 @@ function refreshMethodUI() {
 
   const yre = $("segYre");
   const lre = $("segLre");
+  // Aktiver Modus blau gefüllt (cta), inaktiver nur umrandet (secondary) —
+  // das selected-Attribut von sp-action-button zeigte Photoshop nicht an.
   [[yre, "YRE"], [lre, "LRE"]].forEach(([btn, sp]) => {
     if (!btn) return;
-    if (uiSettings.space === sp) btn.setAttribute("selected", "");
-    else btn.removeAttribute("selected");
+    btn.setAttribute("variant", uiSettings.space === sp ? "cta" : "secondary");
   });
 
   const btn = $("applyBtn");
