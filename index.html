@@ -134,6 +134,35 @@
     .mult-group {
       margin-top: 12px;
     }
+    /* Einklappbare Bereiche: Kopfzeile mit +/– und Kurzfassung. */
+    .toggle-row {
+      margin: 8px 0 2px 0;
+      cursor: pointer;
+    }
+    .toggle-icon {
+      font-weight: bold;
+      display: inline-block;
+      width: 12px;
+    }
+    .toggle-summary {
+      opacity: 0.75;
+    }
+    .toggle-summary.warn {
+      color: var(--uxp-host-warning-color, #ffcf7a);
+      opacity: 1;
+    }
+    .toggle-section {
+      display: none;
+    }
+    .toggle-section.open {
+      display: block;
+    }
+    #multArea.collapsed .mult-details {
+      display: none;
+    }
+    #multArea.collapsed .mult-group {
+      margin-top: 4px;
+    }
     #resetMultBtn {
       margin-top: 12px;
     }
@@ -246,30 +275,35 @@
   </div>
   <sp-body id="sigmaWarning" class="warning-text" size="XS"></sp-body>
 
-  <sp-checkbox id="preserveMean" size="s">Preserve original mean</sp-checkbox>
-
-  <sp-body class="value-label" size="XS">
-    <span id="saturationLabelText">Saturation (after stretch):</span> <span id="saturationVal">1.0</span>
+  <!-- Seltener gebrauchte Optionen, einklappbar (spart Höhe; das Panel
+       scrollt nicht). Die Kopfzeile zeigt Abweichungen vom Standard. -->
+  <sp-body size="XS" class="toggle-row" id="advToggle">
+    <span id="advIcon" class="toggle-icon">+</span> <span id="advTitle">More settings</span> <span id="advSummary" class="toggle-summary"></span>
   </sp-body>
-  <div class="control-row">
-    <sp-slider id="saturation" min="0.1" max="2" value="1" step="0.01"></sp-slider>
-    <sp-action-button id="saturationResetBtn" class="mini-reset-btn" quiet title="Reset">↺</sp-action-button>
+  <div id="advSection" class="toggle-section">
+    <sp-checkbox id="preserveMean" size="s">Preserve original mean</sp-checkbox>
+
+    <sp-body class="value-label" size="XS">
+      <span id="saturationLabelText">Saturation (after stretch):</span> <span id="saturationVal">1.0</span>
+    </sp-body>
+    <div class="control-row">
+      <sp-slider id="saturation" min="0.1" max="2" value="1" step="0.01"></sp-slider>
+      <sp-action-button id="saturationResetBtn" class="mini-reset-btn" quiet title="Reset">↺</sp-action-button>
+    </div>
+
+    <sp-checkbox id="colorBalance" size="s">Color balance before stretch (CB)</sp-checkbox>
+
+    <sp-body class="value-label" size="XS">
+      <span id="featherLabelText">Feather radius (px, if selection active):</span> <span id="featherVal">0</span>
+    </sp-body>
+    <div class="control-row">
+      <sp-slider id="featherRadius" min="0" max="200" value="0" step="1"></sp-slider>
+      <sp-action-button id="featherHelpBtn" class="mini-reset-btn" quiet title="Info">?</sp-action-button>
+    </div>
+    <sp-body class="hint collapsible" id="featherHint" size="XS">
+      Only applies when a selection is active.
+    </sp-body>
   </div>
-
-  <sp-checkbox id="colorBalance" size="s">Color balance before stretch (CB)</sp-checkbox>
-
-  <sp-body class="value-label" size="XS">
-    <span id="featherLabelText">Feather radius (px, if selection active):</span> <span id="featherVal">0</span>
-  </sp-body>
-  <div class="control-row">
-    <sp-slider id="featherRadius" min="0" max="200" value="0" step="1"></sp-slider>
-    <sp-action-button id="featherHelpBtn" class="mini-reset-btn" quiet title="Info">?</sp-action-button>
-  </div>
-  <sp-body class="hint collapsible" id="featherHint" size="XS">
-    Only applies when a selection is active. Statistics are computed from
-    the selection's content only; the result is masked back onto the
-    layer with the chosen feather.
-  </sp-body>
 
   <sp-divider size="small"></sp-divider>
 
@@ -323,56 +357,69 @@
 
   <sp-checkbox id="grayscale" size="s">Grayscale (convert enhancement to brightness only)</sp-checkbox>
 
-  <div class="mult-group">
-    <sp-button id="applyYreBtn" class="apply-btn-3d" variant="cta">Apply YRE (YUV)</sp-button>
-    <sp-body class="value-label" size="XS" id="yreMultLabel">Channel multipliers YRE (Y / U / V)</sp-body>
-    <div class="mult-row">
-      <div class="mults">
-        <sp-textfield id="yre1" value="1.0" size="s"></sp-textfield>
-        <sp-textfield id="yre2" value="0.6" size="s"></sp-textfield>
-        <sp-textfield id="yre3" value="1.6" size="s"></sp-textfield>
-      </div>
-      <div class="mult-preset-btns">
-        <sp-action-button id="yreSavePresetBtn" class="icon-btn" quiet title="Save preset">
-          <img src="icons/save.png" alt="Save" width="18" height="18" />
-        </sp-action-button>
-        <sp-action-button id="yreLoadPresetBtn" class="icon-btn" quiet title="Load preset">
-          <img src="icons/load.png" alt="Load" width="18" height="18" />
-        </sp-action-button>
-      </div>
-    </div>
-    <sp-body class="hint" size="XS">
-      <span id="yrePresetLabelText">Preset:</span> <span id="yreLoadedPresetName">-</span>
-    </sp-body>
-  </div>
-
-  <div class="mult-group">
-    <sp-button id="applyLreBtn" class="apply-btn-3d" variant="cta">Apply LRE (Lab)</sp-button>
-    <sp-body class="value-label" size="XS" id="lreMultLabel">Channel multipliers LRE (L / a / b)</sp-body>
-    <div class="mult-row">
-      <div class="mults">
-        <sp-textfield id="lre1" value="1.0" size="s"></sp-textfield>
-        <sp-textfield id="lre2" value="1.6" size="s"></sp-textfield>
-        <sp-textfield id="lre3" value="0.6" size="s"></sp-textfield>
-      </div>
-      <div class="mult-preset-btns">
-        <sp-action-button id="lreSavePresetBtn" class="icon-btn" quiet title="Save preset">
-          <img src="icons/save.png" alt="Save" width="18" height="18" />
-        </sp-action-button>
-        <sp-action-button id="lreLoadPresetBtn" class="icon-btn" quiet title="Load preset">
-          <img src="icons/load.png" alt="Load" width="18" height="18" />
-        </sp-action-button>
+  <!-- Die Anwenden-Knöpfe sind immer sichtbar; die Multiplikatoren
+       (Felder, Presets, Zurücksetzen) sind einklappbar. Eingeklappt wird
+       mit den eingetragenen Werten gerechnet, die Kopfzeile zeigt
+       "geändert"/"ungültig". -->
+  <sp-body size="XS" class="toggle-row" id="multToggle">
+    <span id="multIcon" class="toggle-icon">+</span> <span id="multTitle">Channel multipliers</span> <span id="multSummary" class="toggle-summary"></span>
+  </sp-body>
+  <div id="multArea" class="collapsed">
+    <div class="mult-group">
+      <sp-button id="applyYreBtn" class="apply-btn-3d" variant="cta">Apply YRE (YUV)</sp-button>
+      <div class="mult-details">
+        <sp-body class="value-label" size="XS" id="yreMultLabel">Channel multipliers YRE (Y / U / V)</sp-body>
+        <div class="mult-row">
+          <div class="mults">
+            <sp-textfield id="yre1" value="1.0" size="s"></sp-textfield>
+            <sp-textfield id="yre2" value="0.6" size="s"></sp-textfield>
+            <sp-textfield id="yre3" value="1.6" size="s"></sp-textfield>
+          </div>
+          <div class="mult-preset-btns">
+            <sp-action-button id="yreSavePresetBtn" class="icon-btn" quiet title="Save preset">
+              <img src="icons/save.png" alt="Save" width="18" height="18" />
+            </sp-action-button>
+            <sp-action-button id="yreLoadPresetBtn" class="icon-btn" quiet title="Load preset">
+              <img src="icons/load.png" alt="Load" width="18" height="18" />
+            </sp-action-button>
+          </div>
+        </div>
+        <sp-body class="hint" size="XS">
+          <span id="yrePresetLabelText">Preset:</span> <span id="yreLoadedPresetName">-</span>
+        </sp-body>
       </div>
     </div>
-    <sp-body class="hint" size="XS">
-      <span id="lrePresetLabelText">Preset:</span> <span id="lreLoadedPresetName">-</span>
-    </sp-body>
-  </div>
 
-  <!-- Nur sichtbar, wenn ein Multiplikator-Feld ungültig ist (früher ein
-       dauerhafter "Aktuell verwendet"-Kasten mit 4–5 Zeilen). -->
-  <sp-body id="multDisplay" class="mult-display" size="XS"></sp-body>
-  <sp-button id="resetMultBtn" variant="secondary">Reset multipliers</sp-button>
+    <div class="mult-group">
+      <sp-button id="applyLreBtn" class="apply-btn-3d" variant="cta">Apply LRE (Lab)</sp-button>
+      <div class="mult-details">
+        <sp-body class="value-label" size="XS" id="lreMultLabel">Channel multipliers LRE (L / a / b)</sp-body>
+        <div class="mult-row">
+          <div class="mults">
+            <sp-textfield id="lre1" value="1.0" size="s"></sp-textfield>
+            <sp-textfield id="lre2" value="1.6" size="s"></sp-textfield>
+            <sp-textfield id="lre3" value="0.6" size="s"></sp-textfield>
+          </div>
+          <div class="mult-preset-btns">
+            <sp-action-button id="lreSavePresetBtn" class="icon-btn" quiet title="Save preset">
+              <img src="icons/save.png" alt="Save" width="18" height="18" />
+            </sp-action-button>
+            <sp-action-button id="lreLoadPresetBtn" class="icon-btn" quiet title="Load preset">
+              <img src="icons/load.png" alt="Load" width="18" height="18" />
+            </sp-action-button>
+          </div>
+        </div>
+        <sp-body class="hint" size="XS">
+          <span id="lrePresetLabelText">Preset:</span> <span id="lreLoadedPresetName">-</span>
+        </sp-body>
+      </div>
+    </div>
+    <div class="mult-details">
+      <!-- Nur sichtbar, wenn ein Multiplikator-Feld ungültig ist. -->
+      <sp-body id="multDisplay" class="mult-display" size="XS"></sp-body>
+      <sp-button id="resetMultBtn" variant="secondary">Reset multipliers</sp-button>
+    </div>
+  </div>
   <sp-body class="hint collapsible" id="methodBHint" size="XS">
     Document stays in RGB. Full 3&times;3 transform in the modified
     YUV or Lab color space, with red emphasis.

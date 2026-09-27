@@ -76,6 +76,17 @@ aber so gerechnet, als wäre es Adobe RGB — das Ergebnis sieht dann anders
 aus als beim selben Bild in Adobe RGB. Die Farbraum-Einstellung in der
 Kamera spielt bei RAW-Dateien keine Rolle; sie gilt nur für JPEGs.
 
+## Panel-Aufbau
+
+Oben steht immer der Sigma-Regler. Seltener gebrauchte Optionen
+(Mittelwert beibehalten, Sättigung, Farbausgleich CB, Federradius) liegen
+unter **„Weitere Einstellungen"**, die YRE/LRE-Multiplikatoren unter
+**„Kanal-Multiplikatoren"**. Beide Bereiche lassen sich per Klick auf die
+Kopfzeile auf- und zuklappen; eingeklappt zeigt die Kopfzeile, was vom
+Standard abweicht (z. B. „· CB an", „· geändert", „· ungültig"). Der
+Klappzustand bleibt über Neustarts erhalten. Die Anwenden-Knöpfe sind
+immer sichtbar, und es ist immer nur ein Hilfetext („?") geöffnet.
+
 ## Vier Methoden
 
 Im Panel stehen sie in der Reihenfolge Lab a/b, Universal, Rote Pigmente,
@@ -1084,6 +1095,25 @@ als Umbras Universal bei gleichem Sigma — ein höheres Sigma gleicht das
 aus.
 
 **Version:** 1.5.1 → **1.6.0**.
+
+## Panel kompakter, Version 1.7.0 (27.09.2026)
+
+Das Panel scrollt in Photoshop nicht; auf kleineren Bildschirmen waren
+Knöpfe dadurch nicht mehr erreichbar. Drei Maßnahmen:
+
+1. **Kanal-Multiplikatoren einklappbar** (Felder, Presets, Zurücksetzen);
+   die YRE-/LRE-Knöpfe bleiben sichtbar, gerechnet wird mit den
+   eingetragenen Werten.
+2. **Immer nur ein Hilfetext offen**, und alle Hilfetexte deutlich
+   gekürzt (Details stehen in der Anleitung).
+3. **„Weitere Einstellungen" einklappbar** (Mittelwert, Sättigung, CB,
+   Federradius); Sigma bleibt immer sichtbar.
+
+Eingeklappte Abweichungen vom Standard stehen in der Kopfzeile, der
+Klappzustand wird mit der Sprache in `umbra-settings.json` gespeichert.
+Standard beim ersten Start: beides eingeklappt.
+
+**Version:** 1.6.0 → **1.7.0**.
 
 ## Bekannte offene Punkte / nächste Schritte mit Claude Code
 

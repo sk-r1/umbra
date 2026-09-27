@@ -60,7 +60,7 @@ const MANUAL_URL_EN = "https://github.com/sk-r1/umbra/blob/main/README.en.md";
 // refreshVersionMenuLabel()). MUSS bei einem Versionssprung von Hand mit
 // manifest.json "version" synchron gehalten werden, falls der
 // Automatismus aus irgendeinem Grund nicht greift.
-const FALLBACK_VERSION = "1.6.0";
+const FALLBACK_VERSION = "1.7.0";
 let pluginVersion = FALLBACK_VERSION;
 
 // Diagnose-Ausgaben (min/max der Rohkanäle) in die DevTools-Konsole.
@@ -96,7 +96,7 @@ const I18N = {
     applyBtn: "Apply Lab a/b",
     keepLabText: "Keep result in Lab mode (for channel editing)",
     methodAHint:
-      "Converts the document to Lab mode and stretches only a* and b*. Lightness L* is preserved exactly. Normally the document is converted back to RGB afterwards; tick \"Keep result in Lab mode\" to leave it in Lab so you can edit the a*/b*/L channels directly — YRE/LRE and Red pigments then need a manual convert back to RGB first.",
+      "Converts to Lab and stretches only a*/b*; lightness stays exactly the same. Afterwards the document goes back to RGB, unless \"Keep result in Lab mode\" is ticked (for channel editing).",
     methodBTitle: "YRE / LRE",
     // Bewusst gekürzt ("LRE only" statt "only relevant for LRE"): der lange
     // Text (gemessen ~297px) übersteigt die verfügbare Checkbox-Breite
@@ -117,15 +117,15 @@ const I18N = {
     methodCTitle: "Red pigments",
     applyRedBtn: "Apply red enhancement",
     methodCHint:
-      "Document stays in RGB. Three fixed color directions (roughly: brightness, green vs. red/blue, blue vs. red) are each stretched to equal spread and output directly as red, green and blue — no transform back to natural colors. Red pigments stand out strongly; black and white are suppressed. The original mean color is always kept (the \"Preserve original mean\" checkbox has no effect here), saturation and grayscale are not used.<br /><br />Sigma is relative to the image's own contrast: 15 corresponds to the contrast measured in published reference examples; higher is stronger.",
+      "Strongly emphasizes red pigments and suppresses black and white; the colors are deliberately false. The image's mean color is kept. Sigma is relative to the image's contrast (15 = measured reference contrast). Saturation and \"Preserve original mean\" don't apply.",
     statusComputingRed: (sigma) => `Computing red enhancement (Sigma ${sigma})...`,
     methodUTitle: "Universal",
     applyUniBtn: "Apply universal",
     methodUHint:
-      "Good first choice for most images; also brings out faint yellow pigments. Document stays in RGB. Full decorrelation stretch in a fixed, modified color space and back to natural-looking colors. The original mean color is always kept (the \"Preserve original mean\" checkbox has no effect here), saturation and grayscale are not used.<br /><br />Sigma 10 corresponds to a published reference example with a documented setting of 10; the usual starting point is 15.",
+      "Good first choice for most images; also brings out faint yellow pigments. Stretch in a fixed, measured color space; the image's mean color is kept. Sigma 10 matches a reference example with setting 10. Saturation and \"Preserve original mean\" don't apply.",
     statusComputingUni: (sigma) => `Computing universal enhancement (Sigma ${sigma})...`,
     methodBHint:
-      "Document stays in RGB. Full 3&times;3 transform in the modified YUV or Lab color space, with red emphasis.<br /><br />The multipliers are the gain per channel relative to Sigma (higher = stronger), allowed range 0.1&ndash;10.<br /><br />Keep Sigma fairly low here (roughly 15&ndash;30). At Sigma 60, many pixels fall outside the value range and get clipped.<br /><br />The ⬆/⬇ buttons next to the multiplier fields save or load a preset (multipliers, Sigma, color profile) as a file.",
+      "Stretch in modified YUV (YRE) or Lab (LRE); the document stays in RGB. Multipliers = gain per channel (higher = stronger, 0.1&ndash;10); the arrow buttons save or load them as a preset. Sigma around 15&ndash;30.",
     invalidNote: "* invalid (allowed 0.1–10) — using default value",
     statusComputing: "Computing...",
     statusDone: "Done.",
@@ -154,7 +154,7 @@ const I18N = {
     statusColorBalance: "Applying color balance (CB)...",
     featherLabelText: "Feather radius (px, if selection active):",
     featherHint:
-      "Only applies when a selection is active. Statistics are computed from the selection's content only; the result is masked back onto the layer with the chosen feather.",
+      "Only with an active selection: the statistics come from the selection, and the result is masked with this feather.",
     statusSelectionWeights: "Computing weights from selection...",
     statusApplyingMask: "Applying selection as layer mask...",
     statusSwitchRgb: "Converting document back to RGB...",
@@ -166,6 +166,14 @@ const I18N = {
     menuManual: "User Manual",
     menuRepo: "GitHub Repository",
     menuToRgb: "Convert document to RGB",
+    advTitle: "More settings",
+    multTitle: "Channel multipliers",
+    sumPreserve: "mean kept",
+    sumSat: (v) => `saturation ${v}`,
+    sumCb: "CB on",
+    sumFeather: (v) => `feather ${v}`,
+    multChanged: "changed",
+    multInvalid: "invalid",
   },
   de: {
     sigmaLabel: "Ziel-Kontrast (Sigma):",
@@ -174,7 +182,7 @@ const I18N = {
     applyBtn: "Lab a/b anwenden",
     keepLabText: "Ergebnis in Lab belassen (für Kanal-Bearbeitung)",
     methodAHint:
-      "Wandelt das Dokument in den Lab-Modus und streckt nur a* und b*. Die Helligkeit L* bleibt exakt erhalten. Normalerweise wird danach zurück nach RGB gewandelt; mit \"Ergebnis in Lab belassen\" bleibt es in Lab, sodass die a*/b*/L-Kanäle direkt bearbeitbar sind — YRE/LRE und Rote Pigmente brauchen dann vorher eine manuelle Rückwandlung nach RGB.",
+      "Wandelt nach Lab und streckt nur a*/b*; die Helligkeit bleibt exakt erhalten. Danach zurück nach RGB, außer \"Ergebnis in Lab belassen\" ist angehakt (für Kanal-Bearbeitung).",
     methodBTitle: "YRE / LRE",
     adobeRgbText: "Adobe RGB (1998) statt sRGB — nur für LRE relevant",
     yreMultLabel: "Kanal-Multiplikatoren YRE (Y / U / V)",
@@ -189,15 +197,15 @@ const I18N = {
     methodCTitle: "Rote Pigmente",
     applyRedBtn: "Rot-Verstärkung anwenden",
     methodCHint:
-      "Dokument bleibt in RGB. Drei feste Farbrichtungen (grob: Helligkeit, Grün gegen Rot/Blau, Blau gegen Rot) werden je auf gleiche Streuung gestreckt und direkt als Rot, Grün und Blau ausgegeben — ohne Rückrechnung in natürliche Farben. Rote Pigmente treten stark hervor, Schwarz und Weiß werden unterdrückt. Der mittlere Farbton des Originals bleibt immer erhalten (\"Original-Mittelwert beibehalten\" wirkt hier nicht), Sättigung und Graustufen werden nicht verwendet.<br /><br />Sigma ist relativ zum Kontrast des Bildes: 15 entspricht dem in veröffentlichten Referenzbeispielen gemessenen Kontrast; höher ist stärker.",
+      "Hebt rote Pigmente stark hervor, unterdrückt Schwarz und Weiß; die Farben sind bewusst falsch. Der mittlere Farbton bleibt erhalten. Sigma ist relativ zum Bildkontrast (15 = gemessener Referenzkontrast). Sättigung und \"Mittelwert beibehalten\" wirken hier nicht.",
     statusComputingRed: (sigma) => `Berechne Rot-Verstärkung (Sigma ${sigma})...`,
     methodUTitle: "Universal",
     applyUniBtn: "Universal anwenden",
     methodUHint:
-      "Gute erste Wahl für die meisten Bilder; bringt auch schwache gelbe Pigmente heraus. Dokument bleibt in RGB. Volle Dekorrelationsstreckung in einem festen, modifizierten Farbraum und zurück in natürlich wirkende Farben. Der mittlere Farbton des Originals bleibt immer erhalten (\"Original-Mittelwert beibehalten\" wirkt hier nicht), Sättigung und Graustufen werden nicht verwendet.<br /><br />Sigma 10 entspricht einem veröffentlichten Referenzbeispiel mit dokumentierter Einstellung 10; üblicher Startwert ist 15.",
+      "Gute erste Wahl; bringt auch schwache gelbe Pigmente heraus. Streckung in einem festen, gemessenen Farbraum; der mittlere Farbton bleibt erhalten. Sigma 10 entspricht einem Referenzbeispiel mit Einstellung 10. Sättigung und \"Mittelwert beibehalten\" wirken hier nicht.",
     statusComputingUni: (sigma) => `Berechne Universal-Verstärkung (Sigma ${sigma})...`,
     methodBHint:
-      "Dokument bleibt in RGB. Volle 3&times;3-Transformation im modifizierten YUV- bzw. Lab-Farbraum, mit Rot-Betonung.<br /><br />Die Multiplikatoren sind die Verstärkung je Kanal relativ zu Sigma (größer = stärker), erlaubt sind 0,1&ndash;10.<br /><br />Sigma hier eher niedrig lassen (ca. 15&ndash;30). Bei Sigma 60 laufen viele Pixel aus dem Wertebereich und werden abgeschnitten.<br /><br />Die ⬆/⬇-Schaltflächen neben den Multiplikator-Feldern speichern bzw. laden ein Preset (Multiplikatoren, Sigma, Farbprofil) als Datei.",
+      "Streckung im modifizierten YUV- (YRE) bzw. Lab-Raum (LRE); das Dokument bleibt in RGB. Multiplikatoren = Verstärkung je Kanal (größer = stärker, 0,1&ndash;10); die Pfeil-Knöpfe speichern bzw. laden sie als Preset. Sigma etwa 15&ndash;30.",
     invalidNote: "* ungültig (erlaubt 0,1–10) — Standardwert wird benutzt",
     statusComputing: "Berechne...",
     statusDone: "Fertig.",
@@ -226,7 +234,7 @@ const I18N = {
     statusColorBalance: "Wende Farbausgleich an (CB)...",
     featherLabelText: "Federradius (px, wenn Auswahl aktiv):",
     featherHint:
-      "Wirkt nur, wenn eine Auswahl aktiv ist. Die Statistik wird nur aus dem Inhalt der Auswahl berechnet; das Ergebnis wird mit der gewählten Federung als Maske zurück auf die Ebene angewendet.",
+      "Nur bei aktiver Auswahl: Die Statistik stammt aus der Auswahl, das Ergebnis wird mit dieser Federung maskiert.",
     statusSelectionWeights: "Berechne Gewichte aus der Auswahl...",
     statusApplyingMask: "Wende Auswahl als Ebenenmaske an...",
     statusSwitchRgb: "Wandle Dokument zurück nach RGB...",
@@ -238,6 +246,14 @@ const I18N = {
     menuManual: "Anleitung",
     menuRepo: "GitHub-Repository",
     menuToRgb: "Dokument nach RGB wandeln",
+    advTitle: "Weitere Einstellungen",
+    multTitle: "Kanal-Multiplikatoren",
+    sumPreserve: "Mittelwert behalten",
+    sumSat: (v) => `Sättigung ${v}`,
+    sumCb: "CB an",
+    sumFeather: (v) => `Feder ${v}`,
+    multChanged: "geändert",
+    multInvalid: "ungültig",
   },
 };
 
@@ -250,35 +266,44 @@ function t(key, ...args) {
 
 const LANG_SETTINGS_FILE = "umbra-settings.json";
 
-async function loadLangSetting() {
+// Panel-Einstellungen, die über Neustarts erhalten bleiben: Sprache und
+// ob "Weitere Einstellungen" bzw. die Kanal-Multiplikatoren aufgeklappt
+// sind. Standard beim allerersten Start: Englisch, beides zugeklappt
+// (spart Höhe — das Panel scrollt nicht, alle Knöpfe müssen sichtbar sein).
+let uiSettings = { language: "en", advOpen: false, multOpen: false };
+
+async function loadSettings() {
   try {
     const dataFolder = await uxpFs.getDataFolder();
     let file;
     try {
       file = await dataFolder.getEntry(LANG_SETTINGS_FILE);
     } catch (e) {
-      return "en"; // noch keine Einstellungsdatei -> Standard
+      return; // noch keine Einstellungsdatei -> Standard
     }
     const text = await file.read({ format: uxpFormats.utf8 });
     const parsed = JSON.parse(text);
-    return parsed.language === "de" ? "de" : "en";
+    uiSettings = {
+      language: parsed.language === "de" ? "de" : "en",
+      advOpen: parsed.advOpen === true,
+      multOpen: parsed.multOpen === true,
+    };
   } catch (err) {
-    console.warn("[Umbra] Sprachwahl konnte nicht geladen werden:", err);
-    return "en";
+    console.warn("[Umbra] Einstellungen konnten nicht geladen werden:", err);
   }
 }
 
-async function saveLangSetting(lang) {
+async function saveSettings() {
   try {
     const dataFolder = await uxpFs.getDataFolder();
     const file = await dataFolder.createFile(LANG_SETTINGS_FILE, {
       overwrite: true,
     });
-    await file.write(JSON.stringify({ language: lang }, null, 2), {
+    await file.write(JSON.stringify(uiSettings, null, 2), {
       format: uxpFormats.utf8,
     });
   } catch (err) {
-    console.warn("[Umbra] Sprachwahl konnte nicht gespeichert werden:", err);
+    console.warn("[Umbra] Einstellungen konnten nicht gespeichert werden:", err);
   }
 }
 
@@ -311,6 +336,8 @@ function applyStaticTranslations() {
   setText("colorBalance", "colorBalanceText");
   setText("featherLabelText", "featherLabelText");
   setText("featherHint", "featherHint");
+  setText("advTitle", "advTitle");
+  setText("multTitle", "multTitle");
   setText("grayscale", "grayscaleText");
   setText("methodATitle", "methodATitle");
   setText("keepLab", "keepLabText");
@@ -363,7 +390,8 @@ async function setLanguage(lang) {
   renderStatus();
   refreshMenuLabels();
   refreshMenuLanguageChecks();
-  await saveLangSetting(currentLang);
+  uiSettings.language = currentLang;
+  await saveSettings();
 }
 
 // Kanal-Multiplikatoren je Farbraum (Schätzwerte, Verstärkung je Kanal).
@@ -648,6 +676,55 @@ function updateMultDisplay() {
     el.innerHTML = "";
     el.classList.remove("visible");
   }
+  refreshSummaries();
+}
+
+const HELP_HINT_IDS = ["methodAHint", "methodBHint", "methodCHint", "methodUHint", "featherHint"];
+
+/**
+ * Kurzfassung eingeklappter Einstellungen in der jeweiligen Kopfzeile:
+ * Weicht dort etwas vom Standard ab, steht es sichtbar daneben (z. B.
+ * "· CB an"), damit niemand unbemerkt mit versteckten Einstellungen rechnet.
+ */
+function refreshSummaries() {
+  const adv = $("advSummary");
+  if (adv) {
+    const parts = [];
+    if (getPreserveMean()) parts.push(t("sumPreserve"));
+    const sat = getSaturation();
+    if (Math.abs(sat - 1) > 0.005) parts.push(t("sumSat", sat.toFixed(2)));
+    if (getColorBalance()) parts.push(t("sumCb"));
+    const feather = Math.round(getFeatherRadius());
+    if (feather > 0) parts.push(t("sumFeather", feather));
+    adv.textContent = parts.length ? "· " + parts.join(", ") : "";
+  }
+  const mult = $("multSummary");
+  if (mult) {
+    let invalid = false;
+    let changed = false;
+    Object.keys(MULT_FIELDS).forEach((space) => {
+      const r = readMults(space);
+      if (r.invalid.length) invalid = true;
+      if (r.values.some((v, i) => Math.abs(v - PRESETS[space][i]) > 1e-9)) changed = true;
+    });
+    mult.textContent = invalid
+      ? "· " + t("multInvalid")
+      : changed
+      ? "· " + t("multChanged")
+      : "";
+    mult.classList.toggle("warn", invalid);
+  }
+}
+
+function applyToggleState() {
+  const adv = $("advSection");
+  if (adv) adv.classList.toggle("open", uiSettings.advOpen);
+  const advIcon = $("advIcon");
+  if (advIcon) advIcon.textContent = uiSettings.advOpen ? "–" : "+";
+  const multArea = $("multArea");
+  if (multArea) multArea.classList.toggle("collapsed", !uiSettings.multOpen);
+  const multIcon = $("multIcon");
+  if (multIcon) multIcon.textContent = uiSettings.multOpen ? "–" : "+";
 }
 
 function resetMults() {
@@ -842,7 +919,8 @@ function refreshSigmaUI() {
 }
 
 async function initUI() {
-  currentLang = await loadLangSetting();
+  await loadSettings();
+  currentLang = uiSettings.language;
   applyStaticTranslations();
   // Das Flyout-Menü wurde bereits weiter unten (synchron, vor initUI())
   // mit den Standardwerten auf Englisch aufgebaut, weil currentLang zu
@@ -871,7 +949,16 @@ async function initUI() {
     const btn = $(btnId);
     const hint = $(hintId);
     if (btn && hint) {
-      btn.addEventListener("click", () => hint.classList.toggle("visible"));
+      btn.addEventListener("click", () => {
+        // Immer nur ein Hilfetext offen: Öffnen schließt die anderen, damit
+        // das (nicht scrollende) Panel nicht über den Bildschirm wächst.
+        const willOpen = !hint.classList.contains("visible");
+        HELP_HINT_IDS.forEach((id) => {
+          const other = $(id);
+          if (other) other.classList.remove("visible");
+        });
+        if (willOpen) hint.classList.add("visible");
+      });
     } else {
       console.warn(
         `[Umbra] Hilfe-Button/-Hinweis nicht gefunden: ${btnId}/${hintId}`
@@ -901,6 +988,7 @@ async function initUI() {
   if (saturationSlider && saturationVal) {
     const updateSat = () => {
       saturationVal.textContent = Number(saturationSlider.value).toFixed(2);
+      refreshSummaries();
     };
     wireValueEvents(saturationSlider, updateSat);
     updateSat();
@@ -921,6 +1009,7 @@ async function initUI() {
   if (featherSlider && featherVal) {
     const updateFeather = () => {
       featherVal.textContent = String(Math.round(Number(featherSlider.value)));
+      refreshSummaries();
     };
     wireValueEvents(featherSlider, updateFeather);
     updateFeather();
@@ -942,6 +1031,24 @@ async function initUI() {
 
   const resetBtn = $("resetMultBtn");
   if (resetBtn) resetBtn.addEventListener("click", resetMults);
+
+  // Einklappbare Bereiche ("Weitere Einstellungen", Kanal-Multiplikatoren).
+  // Zustand wird gespeichert, damit das Panel beim nächsten Start so
+  // aussieht wie verlassen.
+  [
+    ["advToggle", "advOpen"],
+    ["multToggle", "multOpen"],
+  ].forEach(([id, key]) => {
+    const el = $(id);
+    if (!el) return;
+    el.addEventListener("click", () => {
+      uiSettings[key] = !uiSettings[key];
+      applyToggleState();
+      saveSettings();
+    });
+  });
+  applyToggleState();
+  ["preserveMean", "colorBalance"].forEach((id) => wireValueEvents($(id), refreshSummaries));
 
   updateMultDisplay();
 

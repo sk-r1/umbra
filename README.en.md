@@ -82,6 +82,17 @@ were Adobe RGB, so the result looks different from the same image in
 Adobe RGB. The in-camera color space setting doesn't matter for RAW
 files; it only applies to JPEGs.
 
+## Panel layout
+
+The Sigma slider is always at the top. Less frequently used options
+(preserve mean, saturation, color balance CB, feather radius) are under
+**"More settings"**, the YRE/LRE multipliers under **"Channel
+multipliers"**. Click a header to expand or collapse it; when collapsed,
+the header shows what differs from the defaults (e.g. "· CB on",
+"· changed", "· invalid"). The expanded/collapsed state is remembered.
+The apply buttons are always visible, and only one help text ("?") is
+open at a time.
+
 ## Four methods
 
 They appear in the panel in the order Lab a/b, Universal, Red pigments,
