@@ -82,9 +82,10 @@ were Adobe RGB, so the result looks different from the same image in
 Adobe RGB. The in-camera color space setting doesn't matter for RAW
 files; it only applies to JPEGs.
 
-## Three methods
+## Four methods
 
-They appear in the panel in this order, each as its own block with its
+They appear in the panel in the order Lab a/b, Universal, Red pigments,
+YRE / LRE, each as its own block with its
 options and apply button.
 
 **Lab a/b**
@@ -119,6 +120,19 @@ used to weaken their channel).
 Recommended Sigma for YRE/LRE: keep it fairly low (roughly 15–30;
 the default is 15). At Sigma 60 many pixels tend to clip out of
 range.
+
+**Universal**
+A good first choice for most images; also brings out faint yellow
+pigments. Duplicates the layer → document stays in RGB → full
+decorrelation stretch in a **fixed, modified color space** (a full 3×3
+matrix from RGB, not just three channel weights) → back to
+natural-looking colors. The original mean color is always kept;
+"Preserve original mean", saturation and grayscale have no effect here.
+Sigma 10 corresponds to a reference example with a documented setting of
+10; the usual starting point is 15.
+
+The color-space matrix and the Sigma calibration are **measured**, not
+estimated.
 
 **Red pigments**
 Duplicates the layer → document stays in RGB → three **fixed** color
@@ -187,7 +201,8 @@ The duplicated layer's name records what was used to produce it, e.g.:
     Background – Lab a/b (Sat1.0, Si15)   ← Lab a/b
 
 Lab a/b layers are named `Lab a/b`, YRE/LRE layers `YRE` or `LRE`,
-Red pigments layers `Red` (or `Rot` with the German UI).
+Red pigments layers `Red` (or `Rot` with the German UI), Universal layers
+`Universal`.
 `CB` appears only if color balance was on; `SatX.X` and `SiXX` (Sigma)
 are always included; `Gray` appears only for YRE/LRE with grayscale
 on.

@@ -76,9 +76,10 @@ aber so gerechnet, als wäre es Adobe RGB — das Ergebnis sieht dann anders
 aus als beim selben Bild in Adobe RGB. Die Farbraum-Einstellung in der
 Kamera spielt bei RAW-Dateien keine Rolle; sie gilt nur für JPEGs.
 
-## Drei Methoden
+## Vier Methoden
 
-Im Panel stehen sie in dieser Reihenfolge, jede als eigener Block mit
+Im Panel stehen sie in der Reihenfolge Lab a/b, Universal, Rote Pigmente,
+YRE / LRE, jede als eigener Block mit
 Optionen und Anwenden-Knopf.
 
 **Lab a/b**
@@ -102,6 +103,19 @@ gedämpft. Sie sind Schätzwerte und im Panel frei editierbar.
 seit 1.2.0: 15). Ein Test mit synthetischen, stark
 korrelierten Farbdaten ergab bei Sigma 60 rund 21 % abgeschnittene Pixel,
 bei Sigma 20 keine.
+
+**Universal**
+Gute erste Wahl für die meisten Bilder; bringt auch schwache gelbe
+Pigmente heraus. Ebene duplizieren → Dokument bleibt in RGB → volle
+Dekorrelationsstreckung in einem **festen, modifizierten Farbraum** (eine
+volle 3×3-Matrix aus RGB, nicht nur drei Kanal-Gewichte) → zurück in
+natürlich wirkende Farben. Der mittlere Farbton bleibt immer erhalten;
+„Original-Mittelwert beibehalten", Sättigung und Graustufen wirken hier
+nicht. Sigma 10 entspricht einem Referenzbeispiel mit dokumentierter
+Einstellung 10; üblicher Startwert ist 15.
+
+Farbraum-Matrix und Sigma-Eichung sind **gemessen**, nicht geschätzt
+(siehe Änderungsprotokoll 1.6.0).
 
 **Rote Pigmente**
 Ebene duplizieren → Dokument bleibt in RGB → drei **feste** Farbrichtungen
@@ -127,7 +141,7 @@ Ein Klick auf den Button macht:
 1. Basis-/Hintergrundebene duplizieren (über `layer.duplicate()`)
 2. Bei Lab a/b: Dokumentmodus auf Lab-Farbe wechseln (gilt fürs ganze
    Dokument – Farbmodus ist keine Ebeneneigenschaft).
-   Bei Rote Pigmente und YRE/LRE: kein Moduswechsel, das Dokument bleibt
+   Bei Universal, Rote Pigmente und YRE/LRE: kein Moduswechsel, das Dokument bleibt
    in RGB.
 3. Decorrelation Stretch auf die duplizierte Ebene anwenden
 
@@ -1035,6 +1049,41 @@ Bei YRE / LRE steht jetzt der **Anwenden-Knopf oben** und die zugehörigen
 Multiplikatoren direkt darunter; zwischen den beiden Gruppen ist mehr
 Abstand als innerhalb. In 1.5.0 standen die Werte über dem Knopf, sodass
 nicht klar war, welcher Knopf zu welchen Werten gehört.
+
+## Neuer Modus „Universal", Version 1.6.0 (27.09.2026)
+
+**Neu:** Universal (siehe „Vier Methoden" oben) — eine echte
+Dekorrelationsstreckung in einem festen, mit einer vollen 3×3-Matrix
+modifizierten Farbraum. Grundlage ist wie bei Rote Pigmente eine
+Messung an veröffentlichten Vorher/Nachher-Paaren mit dokumentierter
+Einstellung:
+
+1. **Drei Referenzpaare** desselben Farbraums; eines davon zeigt die
+   Einstellungen vollständig (Kovarianz, Scale 10). Ein drittes Paar
+   blieb für die Matrix unberücksichtigt, weil sein „Original" laut
+   Beschriftung nachträglich kontrastverstärkt war (Mittelwert passt
+   nicht zum Ergebnis).
+2. **Befund:** Eine einfache Kanal-Gewichtung von YUV (wie YRE) erklärt
+   die Referenzen deutlich schlechter als eine volle 3×3-Matrix. Mit der
+   vollen Matrix bleibt der mittlere Farbton erhalten, Kontrast ist ein
+   einziger Wert pro Bild.
+3. **Kreuzprobe:** Aus nur einem Paar gemessen, sagt die Matrix das
+   jeweils andere voraus (R² je Kanal 0,86/0,77/0,92 bzw. 0,93/0,78/0,88
+   auf 4-px-Blöcken); gemeinsam gemessen 0,87/0,79/0,95 bzw.
+   0,93/0,81/0,92.
+4. **Sigma-Eichung:** am Paar mit dokumentierter Einstellung 10 — Umbras
+   Sigma 10 entspricht dort genau dieser Einstellung.
+5. **Plugin-Code geprüft** (echter JavaScript-Code, außerhalb von
+   Photoshop): liefert die Werte aus Punkt 3; 8 und 16 Bit stimmen
+   überein (mittlere Abweichung 0,25 Stufen).
+
+**Grenzen:** Die Referenzbilder sind klein und JPEG-komprimiert. Die
+Eichung stützt sich auf ein einziges Beispiel mit bekannter Einstellung.
+Im Vergleich wirken die Referenzergebnisse etwas kräftiger/gesättigter
+als Umbras Universal bei gleichem Sigma — ein höheres Sigma gleicht das
+aus.
+
+**Version:** 1.5.1 → **1.6.0**.
 
 ## Bekannte offene Punkte / nächste Schritte mit Claude Code
 

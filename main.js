@@ -60,7 +60,7 @@ const MANUAL_URL_EN = "https://github.com/sk-r1/umbra/blob/main/README.en.md";
 // refreshVersionMenuLabel()). MUSS bei einem Versionssprung von Hand mit
 // manifest.json "version" synchron gehalten werden, falls der
 // Automatismus aus irgendeinem Grund nicht greift.
-const FALLBACK_VERSION = "1.5.1";
+const FALLBACK_VERSION = "1.6.0";
 let pluginVersion = FALLBACK_VERSION;
 
 // Diagnose-Ausgaben (min/max der Rohkanäle) in die DevTools-Konsole.
@@ -119,6 +119,11 @@ const I18N = {
     methodCHint:
       "Document stays in RGB. Three fixed color directions (roughly: brightness, green vs. red/blue, blue vs. red) are each stretched to equal spread and output directly as red, green and blue — no transform back to natural colors. Red pigments stand out strongly; black and white are suppressed. The original mean color is always kept (the \"Preserve original mean\" checkbox has no effect here), saturation and grayscale are not used.<br /><br />Sigma is relative to the image's own contrast: 15 corresponds to the contrast measured in published reference examples; higher is stronger.",
     statusComputingRed: (sigma) => `Computing red enhancement (Sigma ${sigma})...`,
+    methodUTitle: "Universal",
+    applyUniBtn: "Apply universal",
+    methodUHint:
+      "Good first choice for most images; also brings out faint yellow pigments. Document stays in RGB. Full decorrelation stretch in a fixed, modified color space and back to natural-looking colors. The original mean color is always kept (the \"Preserve original mean\" checkbox has no effect here), saturation and grayscale are not used.<br /><br />Sigma 10 corresponds to a published reference example with a documented setting of 10; the usual starting point is 15.",
+    statusComputingUni: (sigma) => `Computing universal enhancement (Sigma ${sigma})...`,
     methodBHint:
       "Document stays in RGB. Full 3&times;3 transform in the modified YUV or Lab color space, with red emphasis.<br /><br />The multipliers are the gain per channel relative to Sigma (higher = stronger), allowed range 0.1&ndash;10.<br /><br />Keep Sigma fairly low here (roughly 15&ndash;30). At Sigma 60, many pixels fall outside the value range and get clipped.<br /><br />The ⬆/⬇ buttons next to the multiplier fields save or load a preset (multipliers, Sigma, color profile) as a file.",
     invalidNote: "* invalid (allowed 0.1–10) — using default value",
@@ -186,6 +191,11 @@ const I18N = {
     methodCHint:
       "Dokument bleibt in RGB. Drei feste Farbrichtungen (grob: Helligkeit, Grün gegen Rot/Blau, Blau gegen Rot) werden je auf gleiche Streuung gestreckt und direkt als Rot, Grün und Blau ausgegeben — ohne Rückrechnung in natürliche Farben. Rote Pigmente treten stark hervor, Schwarz und Weiß werden unterdrückt. Der mittlere Farbton des Originals bleibt immer erhalten (\"Original-Mittelwert beibehalten\" wirkt hier nicht), Sättigung und Graustufen werden nicht verwendet.<br /><br />Sigma ist relativ zum Kontrast des Bildes: 15 entspricht dem in veröffentlichten Referenzbeispielen gemessenen Kontrast; höher ist stärker.",
     statusComputingRed: (sigma) => `Berechne Rot-Verstärkung (Sigma ${sigma})...`,
+    methodUTitle: "Universal",
+    applyUniBtn: "Universal anwenden",
+    methodUHint:
+      "Gute erste Wahl für die meisten Bilder; bringt auch schwache gelbe Pigmente heraus. Dokument bleibt in RGB. Volle Dekorrelationsstreckung in einem festen, modifizierten Farbraum und zurück in natürlich wirkende Farben. Der mittlere Farbton des Originals bleibt immer erhalten (\"Original-Mittelwert beibehalten\" wirkt hier nicht), Sättigung und Graustufen werden nicht verwendet.<br /><br />Sigma 10 entspricht einem veröffentlichten Referenzbeispiel mit dokumentierter Einstellung 10; üblicher Startwert ist 15.",
+    statusComputingUni: (sigma) => `Berechne Universal-Verstärkung (Sigma ${sigma})...`,
     methodBHint:
       "Dokument bleibt in RGB. Volle 3&times;3-Transformation im modifizierten YUV- bzw. Lab-Farbraum, mit Rot-Betonung.<br /><br />Die Multiplikatoren sind die Verstärkung je Kanal relativ zu Sigma (größer = stärker), erlaubt sind 0,1&ndash;10.<br /><br />Sigma hier eher niedrig lassen (ca. 15&ndash;30). Bei Sigma 60 laufen viele Pixel aus dem Wertebereich und werden abgeschnitten.<br /><br />Die ⬆/⬇-Schaltflächen neben den Multiplikator-Feldern speichern bzw. laden ein Preset (Multiplikatoren, Sigma, Farbprofil) als Datei.",
     invalidNote: "* ungültig (erlaubt 0,1–10) — Standardwert wird benutzt",
@@ -325,8 +335,11 @@ function applyStaticTranslations() {
   setText("applyLreBtn", "applyLreBtn");
   setText("methodCTitle", "methodCTitle");
   setText("applyRedBtn", "applyRedBtn");
+  setText("methodUTitle", "methodUTitle");
+  setText("applyUniBtn", "applyUniBtn");
   setHtml("methodBHint", "methodBHint");
   setHtml("methodCHint", "methodCHint");
+  setHtml("methodUHint", "methodUHint");
 
   const sigmaWarningEl = $("sigmaWarning");
   if (sigmaWarningEl && sigmaWarningEl.classList.contains("visible")) {
@@ -852,6 +865,7 @@ async function initUI() {
     ["methodAHelpBtn", "methodAHint"],
     ["methodBHelpBtn", "methodBHint"],
     ["methodCHelpBtn", "methodCHint"],
+    ["methodUHelpBtn", "methodUHint"],
     ["featherHelpBtn", "featherHint"],
   ].forEach(([btnId, hintId]) => {
     const btn = $(btnId);
@@ -1009,6 +1023,18 @@ async function initUI() {
         getFeatherRadius()
       ),
     "Red enhancement"
+  );
+
+  wireButton(
+    "applyUniBtn",
+    () =>
+      runUniversalWorkflow(
+        getSigma(),
+        reportStatus,
+        getColorBalance(),
+        getFeatherRadius()
+      ),
+    "Universal enhancement"
   );
 
   reportStatus("statusReady");
@@ -2160,6 +2186,145 @@ async function applyRedToLayer(doc, layer, targetSigma, weights) {
     for (let k = 0; k < 3; k++) {
       const d = RED_DIRECTIONS[k];
       const v = mean[k] + gain[k] * (d[0] * dr + d[1] * dg + d[2] * db);
+      outData[o + k] = clampTo(Math.round(clamp255(v) * fromEightBit), maxValue);
+    }
+    if (hasAlpha) outData[o + 3] = raw[o + 3];
+  }
+
+  await writeBack(doc, layer, imageData, outData, width, height, components, pixelData.sourceBounds);
+}
+
+// ---------------------------------------------------------------------
+// Universal (Dekorrelationsstreckung in festem, modifiziertem Farbraum)
+//
+// Echte Dekorrelationsstreckung wie YRE/LRE, aber in einem Farbraum, der
+// mit einer vollen 3x3-Matrix Q aus RGB gebildet wird (nicht nur mit drei
+// Kanal-Gewichten). Ablauf: C = Q·x -> Statistik -> Streckung auf
+// gleiche Varianz (Ziel UNI_SIGMA_SCALE × Sigma) -> zurück mit Q⁻¹ -> der
+// mittlere Farbton bleibt erhalten.
+//
+// Q und die Sigma-Eichung sind GEMESSEN (27.09.2026) an veröffentlichten
+// Vorher/Nachher-Paaren mit dokumentierter Einstellung: Q aus zwei Motiven
+// gemeinsam bestimmt; Kreuzprobe — aus nur einem Motiv gemessen, sagt Q
+// das jeweils andere voraus (R² je Kanal 0,86/0,77/0,92 bzw.
+// 0,93/0,78/0,88 auf 4-px-Blöcken). Eine einfache YUV-Gewichtung erklärte
+// die Referenzen deutlich schlechter. Sigma geeicht an dem Beispiel mit
+// dokumentierter Einstellung 10.
+// ---------------------------------------------------------------------
+
+// Symmetrisch, Determinante 1 (nur das Produkt Qᵀ·Q beeinflusst das
+// Ergebnis; diese Form ist die eindeutige symmetrische Wahl).
+const UNI_Q = [
+  [0.8734, -0.2637, 0.0191],
+  [-0.2637, 1.2488, -0.3313],
+  [0.0191, -0.3313, 1.0703],
+];
+// Ziel-Streuung im Q-Raum = UNI_SIGMA_SCALE × Sigma (Sigma 10 <-> 24,65).
+const UNI_SIGMA_SCALE = 2.465;
+
+function invert3x3(m) {
+  const [[a, b, c], [d, e, f], [g, h, i]] = m;
+  const A = e * i - f * h;
+  const B = -(d * i - f * g);
+  const C = d * h - e * g;
+  const det = a * A + b * B + c * C;
+  return [
+    [A / det, -(b * i - c * h) / det, (b * f - c * e) / det],
+    [B / det, (a * i - c * g) / det, -(a * f - c * d) / det],
+    [C / det, -(a * h - b * g) / det, (a * e - b * d) / det],
+  ];
+}
+
+async function runUniversalWorkflow(targetSigma, report, colorBalance, featherRadius) {
+  const doc = app.activeDocument;
+  if (!doc) throw new Error(t("errNoDocument"));
+  assertSupportedDocument(doc, false);
+
+  const layerSuffix = buildLayerSuffix("Universal", targetSigma, null, colorBalance, false);
+  const dupLayer = await duplicateBaseLayer(doc, layerSuffix, report);
+
+  const useSelection = await hasActiveSelection(doc);
+  let weights = null;
+  if (useSelection) {
+    report && report("statusSelectionWeights");
+    weights = await buildSelectionWeights(doc, featherRadius);
+  }
+
+  if (colorBalance) {
+    report && report("statusColorBalance");
+    await applyGrayWorldBalance(doc, dupLayer);
+  }
+
+  report && report("statusComputingUni", Math.round(targetSigma));
+  await applyUniversalToLayer(doc, dupLayer, targetSigma, weights);
+
+  if (useSelection) {
+    report && report("statusApplyingMask");
+    await applySelectionAsMask(doc, dupLayer);
+  }
+}
+
+async function applyUniversalToLayer(doc, layer, targetSigma, weights) {
+  const pixelData = await imaging.getPixels({
+    documentID: doc.id,
+    layerID: layer.id,
+  });
+  const { imageData } = pixelData;
+  const { width, height, components } = imageData;
+  const raw = await imageData.getData({ chunky: true });
+  const hasAlpha = components >= 4;
+  const pixelCount = width * height;
+
+  // 0..255-Skala wie bei YRE/LRE und Rote Pigmente (Q wurde an 8-Bit-Werten
+  // gemessen); gerundet wird erst beim Zurückschreiben.
+  const maxValue = getMaxValue(raw);
+  const toEightBit = maxValue === 255 ? 1 : 255 / maxValue;
+  const fromEightBit = maxValue === 255 ? 1 : maxValue / 255;
+
+  const Q = UNI_Q;
+  const Qinv = invert3x3(Q);
+  const C0 = new Float32Array(pixelCount);
+  const C1 = new Float32Array(pixelCount);
+  const C2 = new Float32Array(pixelCount);
+  for (let i = 0; i < pixelCount; i++) {
+    const o = i * components;
+    const r = raw[o] * toEightBit;
+    const g = raw[o + 1] * toEightBit;
+    const b = raw[o + 2] * toEightBit;
+    C0[i] = Q[0][0] * r + Q[0][1] * g + Q[0][2] * b;
+    C1[i] = Q[1][0] * r + Q[1][1] * g + Q[1][2] * b;
+    C2[i] = Q[2][0] * r + Q[2][1] * g + Q[2][2] * b;
+  }
+
+  const { mean, sumW } = weightedMean([C0, C1, C2], weights, pixelCount);
+  const cov = weightedCovariance([C0, C1, C2], mean, weights, pixelCount, sumW);
+  const { eigenvalues, eigenvectors } = jacobiEigen3x3(cov);
+  const S = buildStretchMatrix3x3(eigenvectors, eigenvalues, UNI_SIGMA_SCALE * targetSigma);
+
+  // Gesamtabbildung in RGB: out = mRGB + M·(x − mRGB) mit M = Q⁻¹·S·Q.
+  // Da C = Q·x linear ist, gilt C − mean = Q·(x − mRGB).
+  const M = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+  for (let a = 0; a < 3; a++) {
+    for (let b = 0; b < 3; b++) {
+      let v = 0;
+      for (let k = 0; k < 3; k++) {
+        for (let l = 0; l < 3; l++) v += Qinv[a][k] * S[k][l] * Q[l][b];
+      }
+      M[a][b] = v;
+    }
+  }
+  const mRGB = [0, 1, 2].map(
+    (a) => Qinv[a][0] * mean[0] + Qinv[a][1] * mean[1] + Qinv[a][2] * mean[2]
+  );
+
+  const outData = new raw.constructor(raw.length);
+  for (let i = 0; i < pixelCount; i++) {
+    const o = i * components;
+    const dr = raw[o] * toEightBit - mRGB[0];
+    const dg = raw[o + 1] * toEightBit - mRGB[1];
+    const db = raw[o + 2] * toEightBit - mRGB[2];
+    for (let k = 0; k < 3; k++) {
+      const v = mRGB[k] + M[k][0] * dr + M[k][1] * dg + M[k][2] * db;
       outData[o + k] = clampTo(Math.round(clamp255(v) * fromEightBit), maxValue);
     }
     if (hasAlpha) outData[o + 3] = raw[o + 3];
