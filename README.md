@@ -1,7 +1,8 @@
 # Umbra – Decorrelation Stretch für Photoshop (UXP-Plugin)
 
 Wendet einen klassischen **Decorrelation Stretch** (nach Gillespie et al.,
-bekannt aus Fernerkundung und Fotografie von Felszeichnungen/"DStretch") auf
+bekannt aus der Fernerkundung; in der Felsbild-Dokumentation vor allem
+durch [DStretch](https://www.dstretch.com) von Jon Harman verbreitet) auf
 eine duplizierte Ebene an: Im Lab-Farbraum werden die a*- und b*-Kanäle
 (Farbinformation) per PCA entkorreliert, auf gleiche Varianz gestreckt und
 wieder zurücktransformiert. Die Helligkeit (L*) bleibt unangetastet.
@@ -81,28 +82,21 @@ Kamera spielt bei RAW-Dateien keine Rolle; sie gilt nur für JPEGs.
 Ebene duplizieren → Dokument nach Lab konvertieren → 2×2-Stretch nur auf
 a*/b*. Die Helligkeit L* bleibt exakt unverändert.
 
-**Methode B — YRE / LRE (an DStretch für ImageJ angelehnt)**
+**Methode B — YRE / LRE**
 Ebene duplizieren → Dokument bleibt in RGB → pro Pixel intern nach YUV
-(YRE) bzw. Lab (LRE) konvertieren → Kanäle mit Multiplikatoren skalieren
-→ volle 3×3-Decorrelation-Stretch (Karhunen-Loève) → Skalierung
-rückgängig → zurück nach RGB.
+(YRE) bzw. Lab (LRE) konvertieren → volle 3×3-Decorrelation-Stretch
+(Karhunen-Loève) → zurück nach RGB.
 
-Laut Jon Harmans Algorithmus-Beschreibung sind YDS, YBR, YBK, LDS und LRE
-keine eigenständigen Farbräume, sondern Modifikationen von YUV bzw. LAB;
-das Bild wird von RGB in den Farbraum konvertiert, dort werden
-Kovarianzmatrix und 3×3-Transformation bestimmt, anschließend geht es
-zurück nach RGB. Genau dieses Prinzip bildet Methode B nach.
-
-**Wichtige Einschränkung:** Die konkreten Multiplikatoren, die Harman für
-YRE bzw. LRE verwendet, sind nicht veröffentlicht. Die Startwerte im
-Plugin (YRE: 1.0 / 0.6 / 1.6 — LRE: 1.0 / 1.6 / 0.6) sind plausible
-Schätzwerte, **keine Originalwerte**. Sie sind deshalb im UI frei
-editierbar, entsprechend Harmans YXX/LXX-Modus. Das Ergebnis wird dem
-Original-DStretch also ähneln, aber nicht damit identisch sein.
+**Multiplikatoren = Verstärkung je Kanal:** Die Streuung jedes Kanals im
+Ergebnis ist Sigma × Multiplikator. Größer heißt stärker, 1.0 heißt
+„genau Sigma". Erlaubt sind Werte von 0.1 bis 10; andere Eingaben werden
+markiert und durch den Startwert ersetzt. Die Startwerte betonen Rot:
+YRE 1.0 / 0.6 / 1.6 verstärkt V (Rot-Achse), LRE 1.0 / 1.6 / 0.6
+verstärkt a\* (Rot-Grün-Achse); die jeweils andere Farbachse wird
+gedämpft. Sie sind Schätzwerte und im Panel frei editierbar.
 
 **Sigma-Empfehlung für Methode B:** eher niedrig (ca. 15–30; Standardwert
-seit 1.2.0: 15). DStretch
-nutzt als Standard-Skala 15. Ein Test mit synthetischen, stark
+seit 1.2.0: 15). Ein Test mit synthetischen, stark
 korrelierten Farbdaten ergab bei Sigma 60 rund 21 % abgeschnittene Pixel,
 bei Sigma 20 keine.
 
@@ -524,16 +518,13 @@ Blickwinkel dieselbe Ursache).
 
 ## Neue Funktionen: Sättigung, Graustufen, Farbausgleich (v0.24alpha)
 
-Auf Vorschlag umgesetzt, angelehnt an DStretchs "Adj Col"- und
-"CB"-Buttons:
+Auf Vorschlag umgesetzt:
 
 - **Sättigung nach dem Stretch** (Regler, 0.1–2.0, Standard 1.0): Gilt
   für beide Methoden. Skaliert nur die Chroma-Abweichung des
   Stretch-Ergebnisses (a\*/b\* bzw. die beiden Farbkanäle in YRE/LRE),
   nicht den gewählten Farbmittelpunkt und nicht die Helligkeit. Bei
-  Werten unter 1.0 wirkt das Ergebnis gedämpfter/natürlicher — genau der
-  in der DStretch-Doku beschriebene Effekt ("Reducing the saturation ...
-  can tame the sometimes wild colors").
+  Werten unter 1.0 wirkt das Ergebnis gedämpfter/natürlicher.
 - **Graustufen** (Checkbox, nur Methode B): Wandelt das fertige,
   gestreckte RGB-Ergebnis per Standard-Luminanzformel
   (0.299R+0.587G+0.114B) in reine Helligkeit um — die vom Stretch
@@ -559,8 +550,7 @@ Kanalmittelwerte exakt gleich. Sättigungsskalierung mit Beispielwerten
 durchgerechnet — bei Sättigung 0 verschwindet die Farbabweichung
 vollständig, der gewählte Mittelpunkt bleibt erhalten.
 
-**Nicht umgesetzt (aus dem Gespräch zu DStretch-Funktionen):** YBK/CRGB
-als zusätzliche Farbräume, Cyan-Reduktion, Vorab-Glättung — auf
+**Nicht umgesetzt:** weitere Farbräume, Cyan-Reduktion, Vorab-Glättung — auf
 Wunsch zurückgestellt, siehe Diskussion im Chat-Verlauf.
 
 **Fix (v0.25alpha, nur Teilerfolg):** Der Sättigungs-Regler blieb nach
@@ -737,9 +727,8 @@ Falls das Panel gar nicht mehr lädt, ist der erste Verdacht das
 
 ## Umbenennung in "Umbra" und Version 1.0.0 (04.09.2026)
 
-Der Arbeitstitel "D-Stretch" / "DS" war zu nah am Original-DStretch von
-Jon Harman und hat den Eindruck erweckt, es handle sich um dessen
-Portierung. Das Plugin heißt jetzt durchgehend **Umbra**:
+Der Arbeitstitel "D-Stretch" / "DS" war zu nah am Namen einer
+bestehenden Software. Das Plugin heißt jetzt durchgehend **Umbra**:
 
 - **Manifest:** `id` = `com.example.umbra`, `name` = `Umbra`,
   Entrypoint-`id` = `umbraPanel`, Panel-Label = `Umbra`.
@@ -752,7 +741,7 @@ Portierung. Das Plugin heißt jetzt durchgehend **Umbra**:
   `D-Stretch …`. Bereits vorhandene Ebenen in alten Dateien behalten
   ihren Namen.
 - **Dateinamen:** Die Spracheinstellung liegt jetzt in
-  `umbra-settings.json` (vorher `dstretch-settings.json`), vorgeschlagene
+  `umbra-settings.json`, vorgeschlagene
   Preset-Dateinamen heißen `umbra-yre-preset.json` bzw.
   `umbra-lre-preset.json`.
 - **Neue Icons:** `icons/icon.png` (23×23) und `icons/icon@2x.png`
@@ -761,13 +750,7 @@ Portierung. Das Plugin heißt jetzt durchgehend **Umbra**:
   `icon_2x.png` wird ignoriert, und das Panel-Icon bleibt auf
   Retina-/HiDPI-Displays unscharf oder schwarz.
 
-**Was bewusst *nicht* umbenannt wurde:** Erwähnungen von "DStretch"
-(ohne Bindestrich) im Text und im Code beziehen sich auf Jon Harmans
-Original-Software für ImageJ und auf dessen Algorithmus-Beschreibung –
-das sind Quellenangaben und müssen so bleiben. Die älteren
-Changelog-Abschnitte oben stehen ebenfalls unverändert als Verlauf.
-
-**Drei Punkte zum Nachziehen (nicht automatisch möglich):**
+**Zwei Punkte zum Nachziehen (nicht automatisch möglich):**
 
 1. Weil sich die Manifest-`id` geändert hat, betrachtet Photoshop das
    Plugin als ein *neues* Plugin. Im UXP Developer Tool das alte
@@ -777,10 +760,6 @@ Changelog-Abschnitte oben stehen ebenfalls unverändert als Verlauf.
    Weil das UXP Developer Tool Plugins über ihren Ordnerpfad einbindet,
    muss der alte Eintrag dort einmal entfernt und der Ordner unter dem
    neuen Pfad neu hinzugefügt werden.
-3. Das gepackte Plugin unter `Plugin/com.example.dstretch_PS.ccx` trägt
-   noch den alten Namen – bewusst, denn es enthält auch noch den alten
-   Stand *vor* der Umbenennung. Es wird beim nächsten Packen durch eine
-   neue Datei ersetzt.
 
 ## Flyout-Menü an der Registerkarte (05.09.2026)
 
@@ -958,6 +937,29 @@ ohne Ordner-Einträge im ZIP gebaut. Am Plugin-Verhalten ändert sich nichts.
   verschoben. Passt eine Auswahl nicht zur Ebenengröße, bricht Umbra mit
   Meldung ab statt still falsch zu gewichten.
 - Veraltete bzw. falsche Code-Kommentare korrigiert.
+
+## Multiplikatoren als Verstärkung, Version 1.3.0 (27.09.2026)
+
+**Fehler behoben:** Die Kanal-Multiplikatoren bei YRE/LRE wirkten
+umgekehrt. Die Streuung eines Kanals im Ergebnis war Sigma *geteilt*
+durch den Multiplikator — ein Wert über 1 schwächte seinen Kanal. Die
+als Rot-Betonung gedachten Startwerte (YRE V = 1.6, LRE a\* = 1.6)
+dämpften Rot dadurch, statt es zu verstärken. Aufgefallen beim Vergleich
+mit einem Referenzbild: kräftiges dunkles Rot wurde nicht getroffen.
+
+**Jetzt:** Multiplikator = Verstärkung. Streuung = Sigma × Multiplikator
+(nachgerechnet: bei Sigma 10 und 1.0 / 0.6 / 1.6 genau 10 / 6 / 16).
+Erlaubt 0.1–10; negative Werte (mathematisch gleichbedeutend mit
+positiven) und Werte außerhalb werden als ungültig markiert. Sigma 15
+bleibt als Standard sinnvoll (am Testbild beschneidet YRE jetzt 0.2 %
+statt 2.3 %, LRE 8.5 % statt 7.5 %).
+
+**Achtung, bestehende Presets:** Vor 1.3.0 gespeicherte Preset-Dateien
+wirken jetzt umgekehrt (z. B. 1.6 dämpfte früher, verstärkt jetzt). Neu
+gespeicherte Presets sind nicht betroffen.
+
+Außerdem: Vergleichs- und Quellenhinweise aus Panel-Hilfetext, Code-Kommentaren und
+README entfernt (nur noch eine kurze Referenz am Anfang).
 
 ## Bekannte offene Punkte / nächste Schritte mit Claude Code
 

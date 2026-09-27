@@ -19,24 +19,17 @@
 //
 // Zwei Methoden:
 //
-// A) "Lab a/b" (bisherige Methode)
+// A) "Lab a/b"
 //    Ebene duplizieren -> Dokument nach Lab konvertieren -> 2x2-Stretch
 //    nur auf a*/b*. L* bleibt exakt unverändert.
 //
-// B) "YRE / LRE" (neu, an DStretch für ImageJ angelehnt)
+// B) "YRE / LRE"
 //    Ebene duplizieren -> Dokument bleibt in RGB -> pro Pixel intern nach
-//    YUV bzw. Lab konvertieren -> Kanäle mit Multiplikatoren skalieren
-//    ("modifizierter Farbraum") -> volle 3x3-Decorrelation-Stretch ->
-//    Skalierung rückgängig -> zurück nach RGB.
-//
-//    Hintergrund: Laut Jon Harmans Algorithmus-Beschreibung sind YDS,
-//    YBR, YBK, LDS, LRE keine eigenen Farbräume, sondern Modifikationen
-//    von YUV bzw. LAB. Genau dieses Prinzip bildet Methode B nach.
-//
-//    WICHTIG: Die konkreten Multiplikatoren, die Harman für YRE/LRE
-//    verwendet, sind nicht veröffentlicht — die Werte unten sind meine
-//    plausiblen Startwerte, keine Originalwerte. Sie sind deshalb im UI
-//    frei editierbar (entspricht Harmans YXX/LXX-Modus).
+//    YUV bzw. Lab konvertieren -> volle 3x3-Decorrelation-Stretch ->
+//    zurück nach RGB. Die Kanal-Multiplikatoren sind Verstärkungsfaktoren
+//    je Kanal: Die Streuung von Kanal i im Ergebnis ist Sigma × m_i
+//    (Details bei applyStretchToLayerRe). Die Startwerte sind Schätzwerte
+//    und im UI frei editierbar.
 
 const photoshop = require("photoshop");
 const { app, core, imaging, action } = photoshop;
@@ -63,7 +56,7 @@ const MANUAL_URL_EN = "https://github.com/sk-r1/umbra/blob/main/README.en.md";
 // refreshVersionMenuLabel()). MUSS bei einem Versionssprung von Hand mit
 // manifest.json "version" synchron gehalten werden, falls der
 // Automatismus aus irgendeinem Grund nicht greift.
-const FALLBACK_VERSION = "1.2.2";
+const FALLBACK_VERSION = "1.3.0";
 let pluginVersion = FALLBACK_VERSION;
 
 // Diagnose-Ausgaben (min/max der Rohkanäle) in die DevTools-Konsole.
@@ -118,10 +111,10 @@ const I18N = {
     applyYreBtn: "Apply YRE (YUV)",
     applyLreBtn: "Apply LRE (Lab)",
     methodBHint:
-      "Document stays in RGB. Full 3&times;3 transform in the modified YUV or Lab color space, with red emphasis.<br /><br />Keep Sigma fairly low here (roughly 15&ndash;30): DStretch uses 15 as its default scale. At Sigma 60, many pixels fall outside the value range and get clipped.<br /><br />The ⬆/⬇ buttons next to the multiplier fields save or load a preset (multipliers, Sigma, color profile) as a file.",
+      "Document stays in RGB. Full 3&times;3 transform in the modified YUV or Lab color space, with red emphasis.<br /><br />The multipliers are the gain per channel relative to Sigma (higher = stronger), allowed range 0.1&ndash;10.<br /><br />Keep Sigma fairly low here (roughly 15&ndash;30). At Sigma 60, many pixels fall outside the value range and get clipped.<br /><br />The ⬆/⬇ buttons next to the multiplier fields save or load a preset (multipliers, Sigma, color profile) as a file.",
     currentlyUsed: "Currently used:",
     profileLreOnly: "Profile (LRE only):",
-    invalidNote: "* invalid — using default value",
+    invalidNote: "* invalid (allowed 0.1–10) — using default value",
     statusComputing: "Computing...",
     statusDone: "Done.",
     statusErrorPrefix: "Error: ",
@@ -182,10 +175,10 @@ const I18N = {
     applyYreBtn: "YRE anwenden (YUV)",
     applyLreBtn: "LRE anwenden (Lab)",
     methodBHint:
-      "Dokument bleibt in RGB. Volle 3&times;3-Transformation im modifizierten YUV- bzw. Lab-Farbraum, mit Rot-Betonung.<br /><br />Sigma hier eher niedrig lassen (ca. 15&ndash;30): DStretch nutzt als Standard-Skala 15. Bei Sigma 60 laufen viele Pixel aus dem Wertebereich und werden abgeschnitten.<br /><br />Die ⬆/⬇-Schaltflächen neben den Multiplikator-Feldern speichern bzw. laden ein Preset (Multiplikatoren, Sigma, Farbprofil) als Datei.",
+      "Dokument bleibt in RGB. Volle 3&times;3-Transformation im modifizierten YUV- bzw. Lab-Farbraum, mit Rot-Betonung.<br /><br />Die Multiplikatoren sind die Verstärkung je Kanal relativ zu Sigma (größer = stärker), erlaubt sind 0,1&ndash;10.<br /><br />Sigma hier eher niedrig lassen (ca. 15&ndash;30). Bei Sigma 60 laufen viele Pixel aus dem Wertebereich und werden abgeschnitten.<br /><br />Die ⬆/⬇-Schaltflächen neben den Multiplikator-Feldern speichern bzw. laden ein Preset (Multiplikatoren, Sigma, Farbprofil) als Datei.",
     currentlyUsed: "Aktuell verwendet:",
     profileLreOnly: "Profil (nur LRE):",
-    invalidNote: "* ungültig — Standardwert wird benutzt",
+    invalidNote: "* ungültig (erlaubt 0,1–10) — Standardwert wird benutzt",
     statusComputing: "Berechne...",
     statusDone: "Fertig.",
     statusErrorPrefix: "Fehler: ",
@@ -347,7 +340,9 @@ async function setLanguage(lang) {
   await saveLangSetting(currentLang);
 }
 
-// Kanal-Multiplikatoren je Farbraum (eigene Schätzwerte, siehe Hinweis oben)
+// Kanal-Multiplikatoren je Farbraum (Schätzwerte, Verstärkung je Kanal).
+// Rot-Betonung: YRE verstärkt V (Rot-Achse), LRE verstärkt a* (Rot-Grün)
+// je 1,6-fach und dämpft die jeweils andere Farbachse auf 0,6.
 const PRESETS = {
   YRE: [1.0, 0.6, 1.6],
   LRE: [1.0, 1.6, 0.6],
@@ -554,12 +549,21 @@ const MULT_LABELS = {
   LRE: ["L", "a", "b"],
 };
 
+// Erlaubter Bereich der Multiplikatoren (Verstärkung je Kanal). Unter 0,1
+// wird ein Kanal so stark aufgebläht, dass der Großteil der Pixel
+// abgeschnitten wird; über 10 bleibt praktisch nur dieser eine Kanal
+// übrig. Negative Werte ergäben mathematisch dasselbe wie positive
+// (das Vorzeichen kürzt sich heraus) und werden deshalb als Eingabefehler
+// behandelt statt still akzeptiert.
+const MULT_MIN = 0.1;
+const MULT_MAX = 10;
+
 /**
  * Liest die Multiplikatoren eines Farbraums aus dem UI.
- * Ungültige oder leere Eingaben fallen auf den Preset-Wert zurück, damit
- * ein Tippfehler nicht zu einer stillen Fehlberechnung führt. Der
- * Rückgabewert enthält zusätzlich, welche Felder ungültig waren, damit das
- * UI das anzeigen kann.
+ * Ungültige, leere oder außerhalb von MULT_MIN..MULT_MAX liegende Eingaben
+ * fallen auf den Preset-Wert zurück, damit ein Tippfehler nicht zu einer
+ * stillen Fehlberechnung führt. Der Rückgabewert enthält zusätzlich,
+ * welche Felder ungültig waren, damit das UI das anzeigen kann.
  */
 function readMults(space) {
   const preset = PRESETS[space];
@@ -574,7 +578,7 @@ function readMults(space) {
     }
     const raw = String(el.value).trim().replace(",", ".");
     const num = Number(raw);
-    if (raw === "" || !Number.isFinite(num) || num === 0) {
+    if (raw === "" || !Number.isFinite(num) || num < MULT_MIN || num > MULT_MAX) {
       values.push(preset[idx]);
       invalid.push(idx);
     } else {
@@ -1811,7 +1815,7 @@ async function runReWorkflow(
   const multTxt = mults.map((v, i) => `${labels[i]}=${v}`).join(" ");
 
   // Kein Moduswechsel: Dokument bleibt in RGB, die Farbraum-Umrechnung
-  // passiert intern pro Pixel (wie in DStretch).
+  // passiert intern pro Pixel.
   const layerSuffix = buildLayerSuffix(
     space,
     targetSigma,
@@ -1927,6 +1931,15 @@ async function applyStretchToLayerRe(
   //         erhalten. (Früher rundeten die Rückumrechnungen schon auf
   //         ganze 0..255-Werte; ein 16-Bit-Dokument bekam dadurch nur
   //         256 Tonwerte pro Kanal, also faktisch 8 Bit.) ---
+  //
+  // Multiplikatoren als VERSTÄRKUNG: Gerechnet wird intern mit dem
+  // Kehrwert w_i = 1 / m_i. Die Streckung macht im gewichteten Raum jeden
+  // Kanal auf Sigma gleich; beim Zurückrechnen (Teilen durch w_i, also Mal
+  // m_i) hat Kanal i dann die Streuung Sigma × m_i. Größer heißt damit
+  // stärker. (Bis 1.2.2 wurde direkt mit m_i gewichtet — die Streuung war
+  // dann Sigma / m_i, ein Multiplikator > 1 SCHWÄCHTE seinen Kanal, und
+  // die als Rot-Betonung gedachten Startwerte dämpften Rot.)
+  const w = mults.map((m) => 1 / m);
   const C0 = new Float32Array(pixelCount);
   const C1 = new Float32Array(pixelCount);
   const C2 = new Float32Array(pixelCount);
@@ -1937,9 +1950,9 @@ async function applyStretchToLayerRe(
       raw[o + 1] * toEightBit,
       raw[o + 2] * toEightBit
     );
-    C0[i] = c[0] * mults[0];
-    C1[i] = c[1] * mults[1];
-    C2[i] = c[2] * mults[2];
+    C0[i] = c[0] * w[0];
+    C1[i] = c[1] * w[1];
+    C2[i] = c[2] * w[2];
   }
 
   // --- 2) Mittelwerte + 3) Kovarianzmatrix (beide gewichtet, falls eine
@@ -1982,8 +1995,8 @@ async function applyStretchToLayerRe(
     const s2 =
       outMean[2] + (T[2][0] * d0 + T[2][1] * d1 + T[2][2] * d2) * saturation;
 
-    // Kanal-Skalierung rückgängig machen (0..255-Skala)
-    const rgb = fromSpace(s0 / mults[0], s1 / mults[1], s2 / mults[2]);
+    // Kanal-Gewichtung rückgängig machen (0..255-Skala)
+    const rgb = fromSpace(s0 / w[0], s1 / w[1], s2 / w[2]);
 
     // Graustufen-Option: das fertige, gestreckte RGB-Ergebnis in
     // Helligkeit umwandeln (Standard-Luminanzgewichtung) — zeigt die vom

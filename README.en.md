@@ -1,7 +1,8 @@
 # Umbra – Decorrelation Stretch for Photoshop (UXP plugin)
 
-**Version 1.0.0.** Previously developed under the working title
-"D-Stretch"; the plugin is now called **Umbra**. It is still software
+Previously developed under the working title "D-Stretch"; the plugin
+is now called **Umbra** (the current version is shown in the panel's
+flyout menu). It is still software
 built for one photographer's own use and then shared for testing, so
 expect rough edges. See "Known limitations" below before reporting
 something as broken — it might already be a known issue.
@@ -98,23 +99,23 @@ with any tool). With it ticked, you must convert back to RGB yourself
 before running Method B — if you forget, Method B stops with a clear
 message rather than producing garbage.
 
-**Method B — YRE / LRE** (modeled after DStretch for ImageJ)
+**Method B — YRE / LRE**
 Duplicates the layer → document stays in RGB → internally converts each
-pixel to YUV (YRE) or Lab (LRE) → scales channels by user-editable
-multipliers → full 3×3 decorrelation stretch (Karhunen–Loève) → undoes
-the channel scaling → converts back to RGB.
+pixel to YUV (YRE) or Lab (LRE) → full 3×3 decorrelation stretch
+(Karhunen–Loève) → converts back to RGB.
 
-**Important caveat:** the exact channel multipliers Jon Harman uses for
-YRE/LRE in the original DStretch are not published anywhere I could
-find. The plugin's starting values (YRE: 1.0/0.6/1.6, LRE: 1.0/1.6/0.6)
-are reasonable guesses, **not the original values** — that's why
-they're freely editable in the UI. Results will resemble original
-DStretch output but won't be identical.
+**Multipliers = gain per channel:** each channel's spread in the result
+is Sigma × multiplier. Higher means stronger, 1.0 means "exactly Sigma".
+Allowed range 0.1–10; other entries are flagged and replaced by the
+starting value. The starting values emphasize red: YRE 1.0/0.6/1.6
+boosts V (red axis), LRE 1.0/1.6/0.6 boosts a\* (red–green axis), while
+the other color axis is damped. They are estimates and freely editable.
+Note: presets saved before version 1.3.0 now act inversely (multipliers
+used to weaken their channel).
 
 Recommended Sigma for Method B: keep it fairly low (roughly 15–30;
-the default is 15).
-DStretch's own default is 15; at Sigma 60 many pixels tend to clip out
-of range.
+the default is 15). At Sigma 60 many pixels tend to clip out of
+range.
 
 ## Additional controls
 
@@ -163,9 +164,9 @@ LRE presets are independent of each other.
 The duplicated layer's name records what was used to produce it, e.g.:
 
     Background – LRE (CB, Sat1.0, Si15)
-    Background – Umbra (Sat1.0, Si25)     ← Method A
+    Background – Lab a/b (Sat1.0, Si15)   ← Method A
 
-Method A layers are prefixed `Umbra`, Method B layers `YRE` or `LRE`.
+Method A layers are named `Lab a/b`, Method B layers `YRE` or `LRE`.
 `CB` appears only if color balance was on; `SatX.X` and `SiXX` (Sigma)
 are always included; `Gray` appears only for Method B with grayscale
 on.
